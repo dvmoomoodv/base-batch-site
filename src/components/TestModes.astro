@@ -1,0 +1,40 @@
+---
+import { MODES } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const k = (key: string) => t[key as keyof typeof t];
+const STEPS = ['st_r', 'st_p', 'st_w'];
+---
+<section class="section" id="testmode">
+  <div class="frame">
+    <div class="in pad">
+      <div class="sec-head">
+        <p class="eyebrow">{t.tm_eyebrow}</p>
+        <h2>{t.tm_title}</h2>
+        <p>{t.tm_lede}</p>
+      </div>
+      <div class="tm-modes">
+        {MODES.map(([name, reach, key]) => (
+          <div class:list={['tm-row', { full: name === 'NORMAL' }]}>
+            <div><p class="tm-name">{name}</p><p class="tm-q">{k(`${key}_q`)}</p></div>
+            <div>
+              <div class="tm-bar">
+                {STEPS.map((s, i) => <span class={`tm-seg ${i < Number(reach) ? 'on' : 'off'}`}>{k(s)}</span>)}
+              </div>
+              <p class="tm-note">{k(`${key}_n`)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div class="tm-ben" data-sheet="tmben" data-title={t.g_tmben}>
+        {['tb1', 'tb2', 'tb3', 'tb4'].map(b => (
+          <div class="tap" data-group="tmben"><h4 class="m-title">{k(`${b}_t`)}</h4><p class="m-detail">{k(`${b}_d`)}</p></div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

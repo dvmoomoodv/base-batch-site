@@ -1,0 +1,64 @@
+---
+// 히어로 + 정지 흐름도. 640px 이상은 가로, 미만은 세로 그림. 차단 지점(실행 게이트·실행 전 점검)은 강조색.
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const KEYS = ['src', 'gate', 'chk', 'job', 'tgt'] as const;
+const isStop = (i: number) => i === 1 || i === 2;
+const name = (k: string) => t[`f_${k}_n` as keyof typeof t];
+const line = (k: string) => t[`f_${k}_1` as keyof typeof t];
+
+// 가로
+const H = { W: 108, G: 28, X0: 10, Y: 16, BH: 92 };
+const hBoxes = KEYS.map((k, i) => ({ k, i, x: H.X0 + i * (H.W + H.G) }));
+const ha = H.X0 + (H.W + H.G), hb = H.X0 + 2 * (H.W + H.G) + H.W, hy = H.Y + H.BH + 18;
+// 세로
+const V = { X: 24, W: 272, BH: 56, G: 28, Y0: 16 };
+const vBoxes = KEYS.map((k, i) => ({ k, i, y: V.Y0 + i * (V.BH + V.G) }));
+---
+<section class="hero">
+  <div class="frame">
+    <div class="in">
+      <span class="badge"><i></i>Spring Boot 3.2 · Spring Batch 5 · Docker</span>
+      <h1>{t.hero_title}</h1>
+      <p class="lede">{t.hero_lede}</p>
+      <div class="cta-row">
+        <a class="btn btn-solid" href="#features">{t.cta_features}</a>
+        <a class="btn btn-line" href="#contact">{t.cta_contact}</a>
+      </div>
+    </div>
+    <div class="diagram">
+      <div class="in">
+        <svg class="flow flow-h" viewBox="0 0 672 172" role="img" aria-label={t.flow_aria}>
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arw-head" d="M0 0L10 5L0 10z" /></marker></defs>
+          {hBoxes.map(({ k, i, x }) => (
+            <>
+              <rect class={isStop(i) ? 'box stop' : 'box'} x={x} y={H.Y} width={H.W} height={H.BH} rx="8" />
+              <text class="nm" x={x + H.W / 2} y={H.Y + 40} text-anchor="middle">{name(k)}</text>
+              <text class="ln" x={x + H.W / 2} y={H.Y + 62} text-anchor="middle">{line(k)}</text>
+              {i < 4 && <path class="arw" d={`M${x + H.W + 4} ${H.Y + H.BH / 2}H${x + H.W + H.G - 4}`} marker-end="url(#ah)" />}
+            </>
+          ))}
+          <path class="brk" d={`M${ha} ${hy - 6}V${hy}H${hb}V${hy - 6}`} />
+          <text class="tag" x={(ha + hb) / 2} y={hy + 22} text-anchor="middle">{t.stop_tag}</text>
+        </svg>
+        <svg class="flow flow-v" viewBox="0 0 320 424" role="img" aria-label={t.flow_aria}>
+          <defs><marker id="av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arw-head" d="M0 0L10 5L0 10z" /></marker></defs>
+          {vBoxes.map(({ k, i, y }) => (
+            <>
+              <rect class={isStop(i) ? 'box stop' : 'box'} x={V.X} y={y} width={V.W} height={V.BH} rx="8" />
+              <text class="nm" x={V.X + 16} y={y + 24}>{name(k)}</text>
+              <text class="ln" x={V.X + 16} y={y + 43}>{line(k)}</text>
+              {isStop(i) && <text class="tag" x={V.X + V.W - 14} y={y + 33} text-anchor="end">{t.stop_short}</text>}
+              {i < 4 && <path class="arw" d={`M${V.X + V.W / 2} ${y + V.BH + 4}V${y + V.BH + V.G - 4}`} marker-end="url(#av)" />}
+            </>
+          ))}
+        </svg>
+        <p class="diagram-note">{t.flow_note}</p>
+      </div>
+    </div>
+  </div>
+</section>

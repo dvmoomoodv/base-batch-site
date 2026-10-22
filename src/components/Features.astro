@@ -1,0 +1,91 @@
+---
+// 기능: 확장성 2칸 → 새 DB 연결 블록(개발자 2 / 프레임워크 6) → 기능 셀 9개
+import Cells from './Cells.astro';
+import Icon from './Icon.astro';
+import MoreButton from './MoreButton.astro';
+import { FEATURES } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const k = (key: string) => t[key as keyof typeof t];
+const FW = ['fw1', 'fw2', 'fw3', 'fw4', 'fw5', 'fw6'];
+const FW_LIMIT = 3;
+---
+<section class="section section-cells" id="features">
+  <div class="frame">
+    <div class="in">
+      <div class="sec-head">
+        <p class="eyebrow">{t.f_eyebrow}</p>
+        <h2>{t.f_title}</h2>
+        <p>{t.f_lede}</p>
+      </div>
+    </div>
+    <div class="cells c2" data-sheet="ext" data-title={t.g_ext}>
+      <div class="cell ext tap" data-group="ext">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        <h3 class="m-title">{t.x1_t}</h3>
+        <p class="m-detail">{t.x1_d}</p>
+        <div class="drv-group m-detail">
+          <span class="drv-label">{t.x1_built}</span>
+          <div class="drvs">{['Oracle', 'MySQL', 'MSSQL', 'H2'].map(d => <span class="drv">{d}</span>)}</div>
+        </div>
+        <div class="drv-group m-detail">
+          <span class="drv-label">{t.x1_more}</span>
+          <div class="drvs">{['PostgreSQL', 'MariaDB', 'DB2', 'Tibero', '…'].map(d => <span class="drv add">{d}</span>)}</div>
+        </div>
+      </div>
+      <div class="cell ext tap" data-group="ext">
+        <Icon name="plug" />
+        <h3 class="m-title">{t.x2_t}</h3>
+        <p class="m-detail">{t.x2_d}</p>
+        <div class="pipe m-detail" aria-hidden="true">
+          <div class="pipe-end">
+            <span class="pipe-cap">{t.x2_src}</span>
+            <span class="drv">DB</span><span class="drv">{t.x2_excel}</span><span class="drv">{t.x2_file}</span><span class="drv add">{t.x2_api}</span>
+          </div>
+          <span class="pipe-arrow">→</span>
+          <div class="pipe-core"><b>Reader</b><span>→</span><b>Processor</b><span>→</span><b>Writer</b></div>
+          <span class="pipe-arrow">→</span>
+          <div class="pipe-end">
+            <span class="pipe-cap">{t.x2_tgt}</span>
+            <span class="drv">DB</span><span class="drv">{t.x2_file}</span><span class="drv add">{t.x2_api}</span>
+          </div>
+        </div>
+        <p class="pipe-note m-detail">{t.x2_note}</p>
+      </div>
+    </div>
+    <div class="connect">
+      <div class="in">
+        <div class="connect-head">
+          <h3>{t.cn_title}</h3>
+          <p>{t.cn_lede}</p>
+        </div>
+        <div class="connect-grid">
+          <div class="cg-dev">
+            <p class="cg-label"><b>2</b><span>{t.cn_dev}</span></p>
+            <ol class="dev-list">
+              {['dv1', 'dv2'].map(d => <li><h4>{k(`${d}_t`)}</h4><p>{k(`${d}_d`)}</p></li>)}
+            </ol>
+          </div>
+          <div class="cg-fw">
+            <p class="cg-label"><b>{FW.length}</b><span>{t.cn_fw}</span></p>
+            <ul class="fw-list" data-sheet="fw" data-title={t.g_fw}>
+              {FW.map((f, i) => (
+                <li class:list={['tap', { 'm-extra': i >= FW_LIMIT }]} data-group="fw">
+                  <Icon name="tick" size={18} stroke={2} />
+                  <h4 class="m-title">{k(`${f}_t`)}</h4>
+                  <p class="m-detail">{k(`${f}_d`)}</p>
+                </li>
+              ))}
+            </ul>
+            <MoreButton group="fw" total={FW.length} limit={FW_LIMIT} lang={lang} />
+          </div>
+        </div>
+      </div>
+    </div>
+    <Cells items={FEATURES} group="feat" cols="c3" limit={3} lang={lang} />
+  </div>
+</section>

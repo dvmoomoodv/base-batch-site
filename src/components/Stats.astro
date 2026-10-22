@@ -1,0 +1,15 @@
+---
+import { STATS } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const t = useT(Astro.props.lang);
+---
+<section class="section">
+  <div class="frame">
+    <div class="stats">
+      {STATS.map(([n, k]) => <div class="stat"><b>{n}</b><span>{t[k as keyof typeof t]}</span></div>)}
+    </div>
+  </div>
+</section>

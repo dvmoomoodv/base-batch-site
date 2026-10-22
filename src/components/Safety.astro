@@ -1,0 +1,36 @@
+---
+import Icon from './Icon.astro';
+import MoreButton from './MoreButton.astro';
+import { SAFETY } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const LIMIT = 3;
+---
+<section class="section" id="safety">
+  <div class="frame">
+    <div class="in pad safety">
+      <div class="sec-head">
+        <p class="eyebrow">{t.s_eyebrow}</p>
+        <h2>{t.s_title}</h2>
+        <p>{t.s_lede}</p>
+      </div>
+      <div>
+        <ul class="rows" data-sheet="safety" data-title={t.g_safety}>
+          {SAFETY.map((s, i) => (
+            <li class:list={['row tap', { 'm-extra': i >= LIMIT }]} data-group="safety">
+              <Icon name="shield" size={18} />
+              <h3 class="m-title">{s[lang][0]}</h3>
+              <p class="m-detail">{s[lang][1]}</p>
+              <code class="m-detail">{s[lang][2]}</code>
+            </li>
+          ))}
+        </ul>
+        <MoreButton group="safety" total={SAFETY.length} limit={LIMIT} lang={lang} />
+      </div>
+    </div>
+  </div>
+</section>

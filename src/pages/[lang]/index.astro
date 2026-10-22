@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Hero from '../../components/Hero.astro';
+import Stats from '../../components/Stats.astro';
+import Features from '../../components/Features.astro';
+import Safety from '../../components/Safety.astro';
+import TestModes from '../../components/TestModes.astro';
+import Compare from '../../components/Compare.astro';
+import DevExperience from '../../components/DevExperience.astro';
+import CoreTech from '../../components/CoreTech.astro';
+import Contact from '../../components/Contact.astro';
+import Footer from '../../components/Footer.astro';
+import BottomSheet from '../../components/BottomSheet.astro';
+import { site, type Lang } from '../../site.config';
+
+export function getStaticPaths() {
+  return site.locales.map(lang => ({ params: { lang } }));
+}
+const lang = Astro.params.lang as Lang;
+---
+<Base lang={lang}>
+  <Header lang={lang} />
+  <main id="top">
+    <Hero lang={lang} />
+    <Stats lang={lang} />
+    <Features lang={lang} />
+    <Safety lang={lang} />
+    <TestModes lang={lang} />
+    <Compare lang={lang} />
+    <DevExperience lang={lang} />
+    <CoreTech lang={lang} />
+    <Contact lang={lang} />
+  </main>
+  <Footer lang={lang} />
+  <BottomSheet lang={lang} />
+  <script>import '../../scripts/page.ts';</script>
+</Base>

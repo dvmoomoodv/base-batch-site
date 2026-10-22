@@ -1,0 +1,21 @@
+---
+// 모바일 바텀 시트 틀. 내용은 src/scripts/page.ts 가 묶음(data-sheet)의 항목을 복제해 채운다.
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const t = useT(Astro.props.lang);
+---
+<dialog class="msheet" id="msheet" aria-labelledby="ms-title" data-count={t.ms_n}>
+  <div class="ms-inner">
+    <div class="ms-handle" aria-hidden="true"></div>
+    <div class="ms-top">
+      <h2 id="ms-title"></h2>
+      <span class="ms-count" id="ms-count"></span>
+      <button class="ms-close" type="button" id="ms-close" aria-label={t.ms_close}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="ms-body" id="ms-body"></div>
+  </div>
+</dialog>

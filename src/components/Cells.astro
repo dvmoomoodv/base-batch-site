@@ -1,0 +1,21 @@
+---
+// 아이콘 · 제목 · 설명 셀 그리드. 모바일에서는 앞의 limit 개만 제목으로 보이고 나머지는 시트에서 본다.
+import Icon from './Icon.astro';
+import MoreButton from './MoreButton.astro';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { items: [string, { ko: string[]; en: string[] }][]; group: string; cols: 'c3' | 'c4'; limit: number; lang: Lang }
+const { items, group, cols, limit, lang } = Astro.props;
+const t = useT(lang);
+---
+<div class={`cells ${cols}`} data-sheet={group} data-title={t[`g_${group}` as keyof typeof t]}>
+  {items.map(([ic, c], i) => (
+    <div class:list={['cell tap', { 'm-extra': i >= limit }]} data-group={group}>
+      <Icon name={ic as any} />
+      <h3 class="m-title">{c[lang][0]}</h3>
+      <p class="m-detail">{c[lang][1]}</p>
+    </div>
+  ))}
+</div>
+<div class="in"><MoreButton group={group} total={items.length} limit={limit} lang={lang} /></div>

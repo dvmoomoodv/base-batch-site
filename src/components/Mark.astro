@@ -1,0 +1,11 @@
+---
+// 비교표 표시: g 강점 / p 보통 / w 약점
+import { MK } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { m: 'g' | 'p' | 'w'; lang: Lang }
+const { m, lang } = Astro.props;
+const t = useT(lang);
+---
+<svg class={`mk mk-${m}`} viewBox="0 0 24 24" role="img" aria-label={t[`mk_${m}`]} set:html={MK[m]} />

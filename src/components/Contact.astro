@@ -1,0 +1,20 @@
+---
+import { site, type Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const t = useT(Astro.props.lang);
+---
+<section class="section" id="contact">
+  <div class="frame">
+    <div class="in pad contact">
+      <h2>{t.c_title}</h2>
+      <p>{t.c_lede}</p>
+      <div class="mail-row">
+        <span class="mail" id="mail">{site.contactEmail}</span>
+        <button class="btn btn-line" type="button" id="copy-mail" data-copy={t.copy} data-copied={t.copied} data-copy-fail={t.copy_fail}>{t.copy}</button>
+        <a class="btn btn-solid" href={`mailto:${site.contactEmail}`}>{t.c_write}</a>
+      </div>
+    </div>
+  </div>
+</section>

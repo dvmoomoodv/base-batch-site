@@ -1,0 +1,31 @@
+---
+// 루트: 저장된 언어 → 브라우저 언어 순으로 /ko/ 또는 /en/ 으로 보낸다. JS 가 없으면 두 링크를 보여 준다.
+import '../styles/global.css';
+import { site } from '../site.config';
+import { pathFor } from '../lib/i18n';
+
+const ko = pathFor('ko'), en = pathFor('en');
+---
+<!doctype html>
+<html lang={site.defaultLocale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{site.productName.ko}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {site.locales.map(l => <link rel="alternate" hreflang={l} href={pathFor(l)} />)}
+    <script is:inline define:vars={{ ko, en }}>
+      var saved = null;
+      try { saved = localStorage.getItem('lang'); } catch (e) {}
+      var lang = saved === 'ko' || saved === 'en' ? saved
+        : (navigator.languages || [navigator.language || 'ko']).some(function (l) { return /^ko/i.test(l); }) ? 'ko' : 'en';
+      location.replace((lang === 'ko' ? ko : en) + location.hash);
+    </script>
+  </head>
+  <body>
+    <main class="frame in" style="padding-block:64px;display:grid;gap:12px">
+      <a href={ko} hreflang="ko" lang="ko">{site.productName.ko} · 한국어</a>
+      <a href={en} hreflang="en" lang="en">{site.productName.en} · English</a>
+    </main>
+  </body>
+</html>

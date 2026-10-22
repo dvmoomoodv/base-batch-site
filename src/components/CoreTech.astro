@@ -1,0 +1,23 @@
+---
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const t = useT(Astro.props.lang);
+const CORE: [string, string][] = [
+  ['Java 17', t.k1], ['Spring Boot 3', t.k2], ['Spring Batch 5', t.k3], ['MyBatis', t.k4], ['Docker', t.k5],
+];
+---
+<section class="section">
+  <div class="frame">
+    <div class="in pad">
+      <div class="sec-head">
+        <p class="eyebrow">{t.t_eyebrow}</p>
+        <h2>{t.t_title}</h2>
+      </div>
+      <div class="core">
+        {CORE.map(([name, desc]) => <div><b>{name}</b><span>{desc}</span></div>)}
+      </div>
+    </div>
+  </div>
+</section>

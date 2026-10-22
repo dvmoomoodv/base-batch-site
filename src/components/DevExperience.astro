@@ -1,0 +1,60 @@
+---
+// 개발·운영 편의: Docker 샘플 환경(실제 DB와 분리) → 개발 편의 셀 8개
+import Cells from './Cells.astro';
+import Icon from './Icon.astro';
+import { DEVX } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const lock = '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>';
+---
+<section class="section section-cells" id="devx">
+  <div class="frame">
+    <div class="in">
+      <div class="sec-head">
+        <p class="eyebrow">{t.d_eyebrow}</p>
+        <h2>{t.d_title}</h2>
+        <p>{t.d_lede}</p>
+      </div>
+      <div class="split">
+        <div>
+          <h3>{t.dk_title}</h3>
+          <p>{t.dk_lede}</p>
+          <ul class="checks">
+            {[t.dk1, t.dk2, t.dk3, t.dk4].map(s => <li><Icon name="tick" size={16} stroke={2} /><span>{s}</span></li>)}
+          </ul>
+        </div>
+        <div class="sandbox">
+          <div class="zones">
+            <div class="zone real">
+              <p class="zone-name">{t.sb_real}</p>
+              <div class="zone-items">
+                {[t.sb_prod, t.sb_dev].map(s => (
+                  <span class="zi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" set:html={lock} /><span>{s}</span></span>
+                ))}
+              </div>
+              <p class="zone-note">{t.sb_real_note}</p>
+            </div>
+            <div class="zone box">
+              <p class="zone-name"><span class="whale">Docker</span><span>{t.sb_box}</span></p>
+              <div class="zone-items">
+                <span class="zi solid">{t.sb_app}</span>
+                <span class="zi">{t.sb_src}</span>
+                <span class="zi">{t.sb_tgt}</span>
+                <span class="zi">{t.sb_data}</span>
+              </div>
+              <p class="zone-note">{t.sb_box_note}</p>
+            </div>
+          </div>
+          <ol class="sb-flow">
+            {[t.sb_f1, t.sb_f2, t.sb_f3].map((s, i) => <li><b>{i + 1}</b><span>{s}</span></li>)}
+          </ol>
+        </div>
+      </div>
+    </div>
+    <Cells items={DEVX} group="devx" cols="c4" limit={3} lang={lang} />
+  </div>
+</section>

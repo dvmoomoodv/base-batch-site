@@ -1,0 +1,1277 @@
+<title>코드 기반 ETL 프레임워크</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 흑백 위주의 단순한 프레임. 최대 폭 1120px 프레임 안에 섹션을 가로선으로 나누고, 기능은 1px 선으로 나뉜 셀 그리드. mobile-first, 640 / 768 / 1024 */
+:root {
+  --bg: #ffffff;
+  --bg-2: #fafafa;
+  --fg: #0a0a0a;
+  --muted: #666666;
+  --line: #eaeaea;
+  --line-2: #d4d4d4;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --dot: rgba(0, 0, 0, 0.07);
+  --term-bg: #0a0a0a;
+  --term-fg: #ededed;
+  --term-muted: #8f8f8f;
+  --term-line: #262626;
+
+  --font-sans: "Geist", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Consolas, "Courier New", monospace;
+  --gutter: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --bg-2: #0a0a0a; --fg: #ededed; --muted: #a1a1a1;
+    --line: #1f1f1f; --line-2: #333333; --accent: #6b9bff; --accent-soft: rgba(107, 155, 255, 0.12);
+    --dot: rgba(255, 255, 255, 0.08); --term-bg: #0a0a0a; --term-line: #262626;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --bg-2: #0a0a0a; --fg: #ededed; --muted: #a1a1a1;
+  --line: #1f1f1f; --line-2: #333333; --accent: #6b9bff; --accent-soft: rgba(107, 155, 255, 0.12);
+  --dot: rgba(255, 255, 255, 0.08); --term-bg: #0a0a0a; --term-line: #262626;
+  color-scheme: dark;
+}
+@media (min-width: 640px) { :root { --gutter: 24px; } }
+@media (min-width: 1024px) { :root { --gutter: 40px; } }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-sans); font-size: 16px; line-height: 1.65;
+  word-break: keep-all; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; z-index: 30;
+  height: env(safe-area-inset-top, 0px); background: var(--bg);
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p, ul { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* 프레임: 데스크톱에서 좌우 세로선 */
+.frame { max-width: 1120px; margin: 0 auto; }
+@media (min-width: 1160px) { .frame { border-inline: 1px solid var(--line); } }
+.in {
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+.section { border-top: 1px solid var(--line); }
+.section > .frame > .in.pad { padding-block: 56px; }
+@media (min-width: 768px) { .section > .frame > .in.pad { padding-block: 88px; } }
+.eyebrow { font: 500 13px var(--font-mono); color: var(--muted); letter-spacing: 0.02em; }
+.sec-head { display: grid; gap: 12px; max-width: 44em; }
+.sec-head h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.2; letter-spacing: -0.035em; font-weight: 600; }
+.sec-head p { color: var(--muted); font-size: 16.5px; }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border-radius: 999px;
+  font: 500 15px var(--font-sans); text-decoration: none; cursor: pointer; white-space: nowrap;
+  border: 1px solid transparent; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn-solid { background: var(--fg); color: var(--bg); }
+.btn-solid:hover { opacity: 0.86; }
+.btn-line { border-color: var(--line-2); color: var(--fg); background: var(--bg); }
+.btn-line:hover { background: var(--bg-2); }
+
+/* ---------- 헤더 ---------- */
+.site-header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(160%) blur(10px); -webkit-backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.header-row { display: flex; align-items: center; gap: 8px; min-height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; margin-right: auto; }
+.brand svg { flex: none; }
+.brand-name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav { display: none; }
+.nav a, .sheet a {
+  text-decoration: none; color: var(--muted); font-size: 14px;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px;
+}
+.nav a:hover { color: var(--fg); }
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.lang button {
+  font: 500 12px var(--font-mono); color: var(--muted); background: none; border: 0; border-radius: 999px;
+  min-width: 44px; min-height: 40px; cursor: pointer;
+}
+.lang button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.header-cta { display: none; min-height: 36px; font-size: 14px; padding: 0 14px; }
+.menu-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--fg); cursor: pointer;
+}
+.sheet { border-top: 1px solid var(--line); }
+.sheet nav { display: grid; padding-block: 8px 16px; }
+.sheet a { min-height: 52px; font-size: 17px; color: var(--fg); border-bottom: 1px solid var(--line); border-radius: 0; }
+@media (min-width: 768px) {
+  .nav { display: flex; }
+  .header-cta { display: inline-flex; }
+  .menu-btn, .sheet { display: none !important; }
+}
+
+/* ---------- 히어로 ---------- */
+.hero .in { padding-block: 56px 40px; display: grid; justify-items: center; text-align: center; gap: 20px; }
+@media (min-width: 768px) { .hero .in { padding-block: 104px 56px; gap: 24px; } }
+.badge {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 999px; font: 500 12.5px var(--font-mono); color: var(--muted);
+}
+.badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.hero h1 {
+  font-size: clamp(36px, 7.2vw, 76px); line-height: 1.08; letter-spacing: -0.045em; font-weight: 700; max-width: 14em;
+}
+.hero .lede { color: var(--muted); font-size: 17px; max-width: 36em; }
+@media (min-width: 768px) { .hero .lede { font-size: 19px; } }
+.cta-row { display: grid; gap: 10px; width: 100%; max-width: 360px; margin-top: 4px; }
+@media (min-width: 480px) { .cta-row { display: flex; justify-content: center; max-width: none; } }
+
+.diagram {
+  border-top: 1px solid var(--line); background-color: var(--bg-2);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px); background-size: 20px 20px;
+}
+.diagram .in { padding-block: 32px; }
+@media (min-width: 768px) { .diagram .in { padding-block: 56px; } }
+.flow { display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; font-family: var(--font-sans); }
+.flow-h { display: none; }
+.flow-v { max-width: 360px; }
+@media (min-width: 640px) { .flow-h { display: block; } .flow-v { display: none; } }
+.flow .box { fill: var(--bg); stroke: var(--line-2); stroke-width: 1; }
+.flow .box.stop { stroke: var(--accent); stroke-width: 1.5; }
+.flow .nm { fill: var(--fg); font-weight: 600; font-size: 13px; }
+.flow .ln { fill: var(--muted); font-size: 11.5px; }
+.flow .arw { stroke: var(--line-2); stroke-width: 1.25; fill: none; }
+.flow .arw-head { fill: var(--line-2); }
+.flow .brk { stroke: var(--accent); stroke-width: 1; fill: none; }
+.flow .tag { fill: var(--accent); font: 500 11px var(--font-mono); letter-spacing: 0.04em; }
+.diagram-note { text-align: center; color: var(--muted); font-size: 14px; margin-top: 16px; }
+
+/* ---------- 수치 ---------- */
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+@media (min-width: 768px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stat { background: var(--bg); padding: 24px var(--gutter); display: grid; gap: 4px; }
+.stat b { font: 600 clamp(28px, 4vw, 40px)/1.1 var(--font-sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 14px; }
+
+/* ---------- 셀 그리드 ---------- */
+.cells { display: grid; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+.cell { background: var(--bg); padding: 28px max(var(--gutter), env(safe-area-inset-left, 0px)); display: grid; gap: 10px; align-content: start; min-width: 0; }
+@media (min-width: 640px) {
+  .cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cells > .cell:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .cell { padding: 32px var(--gutter); }
+}
+@media (min-width: 1024px) {
+  .cells.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cells.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cells.c3 > .cell:last-child:nth-child(odd), .cells.c4 > .cell:last-child:nth-child(odd) { grid-column: auto; }
+  .cell { padding: 36px 32px; }
+}
+.cell .ico { color: var(--fg); width: 20px; height: 20px; }
+.cell.ext { gap: 14px; }
+.cell.ext h3 { font-size: 19px; letter-spacing: -0.02em; }
+.cell.ext > p { font-size: 15px; }
+.drv-group { display: grid; gap: 6px; }
+.drv-label, .pipe-cap { font: 500 12px var(--font-mono); color: var(--muted); }
+.drvs { display: flex; flex-wrap: wrap; gap: 6px; }
+.drv {
+  display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: 6px; font: 500 12.5px var(--font-mono); color: var(--fg); background: var(--bg);
+}
+.drv.add { border-style: dashed; color: var(--muted); }
+.pipe { display: grid; gap: 10px; justify-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
+.pipe-end { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pipe-cap { width: 100%; }
+.pipe-arrow { color: var(--muted); font-family: var(--font-mono); transform: rotate(90deg); line-height: 1; }
+.pipe-core { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 500 12.5px var(--font-mono); }
+.pipe-core b { font-weight: 500; padding: 6px 10px; border-radius: 6px; background: var(--fg); color: var(--bg); }
+.pipe-core span { color: var(--muted); }
+.pipe-note { font-size: 13px !important; }
+
+/* 새 DBMS 연결 네 단계 */
+.connect { border-top: 1px solid var(--line); }
+.connect > .in { padding-block: 40px; display: grid; gap: 24px; }
+.connect-head { display: grid; gap: 8px; max-width: 44em; }
+.connect-head h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.35; }
+.connect-head p { color: var(--muted); font-size: 15.5px; }
+.connect-grid { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.cg-dev, .cg-fw { background: var(--bg); padding: 22px 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.cg-fw { background: var(--bg-2); }
+.cg-label { display: flex; align-items: center; gap: 10px; font: 500 13px var(--font-mono); color: var(--muted); }
+.cg-label b {
+  display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px;
+  font: 600 14px var(--font-sans); background: var(--fg); color: var(--bg);
+}
+.cg-fw .cg-label b { background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line-2); }
+.dev-list, .fw-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.dev-list li { display: grid; gap: 4px; padding: 16px; border: 1px solid var(--fg); border-radius: 10px; }
+.dev-list h4, .fw-list h4 { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.4; }
+.dev-list p, .fw-list p { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+.fw-list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; }
+.fw-list svg { grid-row: 1 / span 2; margin-top: 3px; color: var(--fg); }
+@media (min-width: 640px) { .fw-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; } }
+@media (min-width: 1024px) {
+  .connect > .in { padding-block: 56px; }
+  .connect-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+  .cg-dev, .cg-fw { padding: 28px; }
+}
+@media (min-width: 1024px) {
+  .pipe { grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr); align-items: center; justify-items: stretch; }
+  .pipe-core { flex-direction: column; align-items: stretch; text-align: center; }
+  .pipe-core span { transform: rotate(90deg); }
+  .pipe-arrow { transform: none; }
+  .pipe-end { align-content: center; }
+}
+.cell h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
+.cell p { color: var(--muted); font-size: 14.5px; line-height: 1.65; }
+.section-cells .sec-head { padding-block: 56px 40px; }
+@media (min-width: 768px) { .section-cells .sec-head { padding-block: 88px 48px; } }
+
+/* ---------- 안전장치 ---------- */
+.safety { display: grid; gap: 32px; }
+@media (min-width: 1024px) { .safety { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; } .safety .sec-head { position: sticky; top: 96px; align-self: start; } }
+.rows { list-style: none; padding: 0; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 4px 12px; padding-block: 20px; border-bottom: 1px solid var(--line); }
+.row svg { color: var(--accent); margin-top: 3px; }
+.row h3 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.row p { grid-column: 2; color: var(--muted); font-size: 14.5px; }
+.row code {
+  grid-column: 2; justify-self: start; max-width: 100%; margin-top: 6px;
+  font: 12.5px/1.6 var(--font-mono); color: var(--fg); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; overflow-wrap: anywhere;
+}
+
+/* ---------- 테스트 모드 ---------- */
+.tm-modes { margin-top: 28px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.tm-row { display: grid; gap: 12px; padding: 18px 16px; border-top: 1px solid var(--line); }
+.tm-row:first-child { border-top: 0; }
+.tm-row.full { background: var(--bg-2); }
+.tm-name { font: 600 13.5px var(--font-mono); letter-spacing: 0.01em; }
+.tm-q { font-size: 15px; line-height: 1.5; margin-top: 2px; }
+.tm-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.tm-seg {
+  min-height: 32px; border-radius: 6px; display: grid; place-items: center; padding: 0 4px;
+  font-size: 12.5px; font-weight: 500; text-align: center;
+}
+.tm-seg.on { background: var(--fg); color: var(--bg); }
+.tm-seg.off { border: 1px dashed var(--line-2); color: var(--muted); }
+.tm-note { margin-top: 6px; font-size: 13px; color: var(--muted); }
+@media (min-width: 768px) {
+  .tm-row { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: 24px; padding: 20px 24px; }
+}
+.tm-ben { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+@media (min-width: 640px) { .tm-ben { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .tm-ben { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tm-ben > div { background: var(--bg); padding: 20px; display: grid; gap: 6px; align-content: start; }
+.tm-ben h4 { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.4; }
+.tm-ben p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ---------- 비교 ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 28px; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mk { flex: none; width: 18px; height: 18px; }
+.mk-g { color: var(--fg); }
+.mk-p, .mk-w { color: var(--muted); }
+.cmp-table-wrap { display: none; margin-top: 24px; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.cmp-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 14.5px; }
+.cmp-table th, .cmp-table td { text-align: left; vertical-align: top; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.cmp-table tr:last-child td { border-bottom: 0; }
+.cmp-table thead th { font-size: 13px; font-weight: 600; color: var(--muted); background: var(--bg-2); }
+.cmp-table tbody th { font-weight: 600; width: 18%; }
+.cmp-table .ours { background: var(--accent-soft); }
+.cmp-table thead .ours { color: var(--accent); }
+.cell-mk { display: flex; gap: 10px; align-items: flex-start; }
+.cell-mk .mk { margin-top: 2px; }
+.cmp-table td .tx-g { color: var(--fg); }
+.cmp-table td .tx-p, .cmp-table td .tx-w { color: var(--muted); }
+.cmp-mobile { margin-top: 24px; display: grid; gap: 16px; }
+.seg-label { font: 500 13px var(--font-mono); color: var(--muted); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg button {
+  min-height: 44px; border: 0; border-radius: 999px; background: none; color: var(--muted);
+  font: 500 14px var(--font-sans); cursor: pointer; padding: 0 8px; line-height: 1.3;
+}
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.cmp-cards { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+@media (min-width: 640px) { .cmp-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cmp-card { background: var(--bg); padding: 18px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.cmp-card h3 { font-size: 15px; font-weight: 600; }
+.cmp-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; }
+.cmp-line .who { grid-column: 2; font: 500 11.5px var(--font-mono); color: var(--muted); letter-spacing: 0.02em; }
+.cmp-line .mk { grid-row: 1 / span 2; margin-top: 2px; }
+.cmp-line .tx { grid-column: 2; font-size: 14.5px; line-height: 1.55; }
+.cmp-line.ours { background: var(--accent-soft); border-radius: 8px; padding: 10px; margin: -2px -4px 0; }
+.cmp-line.ours .who { color: var(--accent); }
+.cmp-line.other .tx { color: var(--muted); }
+@media (min-width: 900px) {
+  .cmp-table-wrap { display: block; }
+  .cmp-mobile { display: none; }
+}
+.fit { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 24px; }
+@media (min-width: 768px) { .fit { grid-template-columns: 1fr 1fr; } }
+.fit > div { background: var(--bg); padding: 22px 20px; }
+.fit h3 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.fit ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+.fit li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; font-size: 14.5px; }
+.fit .no li { color: var(--muted); }
+.cmp-note { margin-top: 14px; font-size: 13px; color: var(--muted); }
+
+/* ---------- 개발 편의: Docker ---------- */
+.split { display: grid; gap: 28px; padding-bottom: 56px; }
+@media (min-width: 1024px) { .split { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: center; padding-bottom: 88px; } }
+.split h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.35; }
+.split > div > p { color: var(--muted); margin-top: 10px; }
+.checks { list-style: none; padding: 0; margin-top: 18px; display: grid; gap: 10px; }
+.checks li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 15px; }
+.checks svg { color: var(--fg); margin-top: 4px; }
+.sandbox { display: grid; gap: 16px; min-width: 0; }
+.zones { display: grid; gap: 12px; }
+@media (min-width: 640px) { .zones { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); } }
+.zone { border-radius: 12px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.zone.real { border: 1px dashed var(--line-2); color: var(--muted); }
+.zone.box { border: 1.5px solid var(--fg); background: var(--bg-2); }
+.zone-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--fg); }
+.zone.real .zone-name { color: var(--muted); }
+.whale { font: 500 11.5px var(--font-mono); padding: 3px 8px; border-radius: 999px; background: var(--fg); color: var(--bg); }
+.zone-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.zi {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: 8px; font-size: 13.5px; background: var(--bg);
+}
+.zone.real .zi { border-style: dashed; background: transparent; }
+.zi.solid { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.zone-note { font-size: 13.5px; color: var(--muted); }
+.sb-flow { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+@media (min-width: 640px) { .sb-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.sb-flow li { display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.sb-flow b {
+  flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  font: 600 12px var(--font-mono); border: 1px solid var(--line-2);
+}
+.sb-flow li:last-child { border-color: var(--fg); }
+.sb-flow li:last-child b { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+/* 핵심 기술 */
+.core { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 24px; }
+@media (min-width: 640px) { .core { grid-template-columns: repeat(2, minmax(0, 1fr)); } .core > div:last-child { grid-column: 1 / -1; } }
+@media (min-width: 1024px) { .core { grid-template-columns: repeat(5, minmax(0, 1fr)); } .core > div:last-child { grid-column: auto; } }
+.core > div { background: var(--bg); padding: 18px; display: grid; gap: 4px; }
+.core b { font: 600 15px var(--font-mono); letter-spacing: -0.01em; }
+.core span { color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+
+/* ---------- 기술 스택 ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.tags span { font: 500 13px var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--fg); }
+
+/* ---------- 문의 ---------- */
+.contact { display: grid; justify-items: center; text-align: center; gap: 16px; }
+.contact h2 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.04em; font-weight: 600; }
+.contact p { color: var(--muted); max-width: 32em; }
+.mail-row { display: grid; gap: 10px; width: 100%; max-width: 520px; margin-top: 8px; }
+@media (min-width: 560px) { .mail-row { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; } }
+.mail {
+  font: 500 15px var(--font-mono); overflow-wrap: anywhere; user-select: all;
+  border: 1px solid var(--line); border-radius: 999px; min-height: 44px; padding: 8px 18px;
+  display: flex; align-items: center; justify-content: center; background: var(--bg-2);
+}
+
+/* ---------- 모바일: 제목만 보이는 목록 + 바텀 시트 ---------- */
+.cmp-sum { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 639px) {
+  .tap { position: relative; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tap .m-detail { display: none !important; }
+  .tap::after {
+    content: ""; position: absolute; right: 22px; top: 50%; width: 7px; height: 7px;
+    border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+    transform: translateY(-50%) rotate(-45deg);
+  }
+  .tap:active { background: var(--bg-2); }
+  .cells > .tap {
+    grid-template-columns: 20px minmax(0, 1fr); align-items: center; column-gap: 12px;
+    padding-top: 18px; padding-bottom: 18px; padding-right: 48px;
+  }
+  .cell.ext.tap h3 { font-size: 16px; }
+  .rows .row.tap { align-items: center; padding-block: 16px; padding-right: 40px; }
+  .rows .row.tap svg { margin-top: 0; }
+  .tm-ben > .tap { padding: 16px 44px 16px 20px; }
+  .cmp-card.tap { padding: 16px 44px 16px 16px; }
+  .fw-list { gap: 0; }
+  .fw-list li.tap { align-items: center; padding: 12px 36px 12px 0; border-top: 1px solid var(--line); }
+  .fw-list li.tap:first-child { border-top: 0; }
+  .fw-list li.tap svg { margin-top: 0; }
+  .fw-list li.tap::after { right: 8px; }
+  .tap.m-extra { display: none !important; }
+  button.m-more { display: flex; }
+  button.m-more[hidden] { display: none; }
+}
+.m-more {
+  display: none; width: 100%; min-height: 48px; margin-top: 12px; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg); color: var(--fg);
+  font: 500 14.5px var(--font-sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.m-more:active { background: var(--bg-2); }
+.m-more .n { font: 500 12.5px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.msheet {
+  margin: 0; padding: 0; border: 0; inset: auto 0 0 0; width: 100%; max-width: 100%;
+  max-height: 86vh; max-height: 86dvh; border-radius: 18px 18px 0 0;
+  background: var(--bg); color: var(--fg); box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+}
+.msheet[open] { display: flex; }
+.msheet::backdrop { background: rgba(0, 0, 0, 0.45); }
+@media (prefers-reduced-motion: no-preference) {
+  .msheet[open] { animation: sheet-up 0.22s ease-out; }
+  @keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+}
+.ms-inner { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+.ms-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--line-2); margin: 10px auto 2px; flex: none; }
+.ms-top {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 10px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 12px max(20px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line); flex: none;
+}
+.ms-top h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.35; }
+.ms-count { font: 500 12.5px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ms-close {
+  width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg);
+  color: var(--fg); display: grid; place-items: center; cursor: pointer;
+}
+.ms-body {
+  overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 1;
+  padding: 4px max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+}
+.ms-item { display: grid; gap: 10px; padding: 18px 0; border-top: 1px solid var(--line); scroll-margin-top: 4px; }
+.ms-item:first-child { border-top: 0; }
+.ms-item.hit { animation: ms-hit 1.2s ease-out; }
+@keyframes ms-hit { from { background: var(--bg-2); } to { background: transparent; } }
+.ms-ih { display: flex; align-items: center; gap: 10px; }
+.ms-ih .ico { flex: none; }
+.ms-ih h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.4; }
+.ms-body p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+.ms-body code {
+  justify-self: start; max-width: 100%; font: 12.5px/1.6 var(--font-mono); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; overflow-wrap: anywhere;
+}
+.ms-body .cmp-line .tx { color: var(--fg); }
+.ms-body .cmp-line.other .tx { color: var(--muted); }
+html.sheet-open, html.sheet-open body { overflow: hidden; }
+
+/* ---------- 푸터 ---------- */
+.footer { border-top: 1px solid var(--line); }
+.footer .in { padding-block: 28px; display: grid; gap: 8px; font-size: 14px; color: var(--muted); }
+@media (min-width: 768px) { .footer .in { grid-template-columns: 1fr auto; align-items: center; } }
+.footer strong { color: var(--fg); font-weight: 600; }
+.footer .mono { font: 12.5px var(--font-mono); }
+</style>
+
+<header class="site-header">
+  <div class="frame in header-row">
+    <a class="brand" href="#top" aria-label="home">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2 12h6M16 12h6" stroke="currentColor" stroke-width="1.75"/>
+        <rect x="8" y="6" width="8" height="12" rx="2" fill="currentColor"/>
+      </svg>
+      <span class="brand-name" data-site="productName"></span>
+    </a>
+    <nav class="nav" aria-label="main">
+      <a href="#features" data-i18n="nav_features"></a>
+      <a href="#safety" data-i18n="nav_safety"></a>
+      <a href="#compare" data-i18n="nav_compare"></a>
+      <a href="#devx" data-i18n="nav_devx"></a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="ko" aria-pressed="true">KO</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <a class="btn btn-solid header-cta" href="#contact" data-i18n="cta_contact"></a>
+    <button class="menu-btn" type="button" id="menu-btn" aria-expanded="false" aria-controls="sheet" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
+    </button>
+  </div>
+  <div class="sheet" id="sheet" hidden>
+    <nav class="frame in" aria-label="mobile">
+      <a href="#features" data-i18n="nav_features"></a>
+      <a href="#safety" data-i18n="nav_safety"></a>
+      <a href="#compare" data-i18n="nav_compare"></a>
+      <a href="#devx" data-i18n="nav_devx"></a>
+      <a href="#contact" data-i18n="cta_contact"></a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="frame">
+      <div class="in">
+        <span class="badge"><i></i>Spring Boot 3.2 · Spring Batch 5 · Docker</span>
+        <h1 data-i18n="hero_title"></h1>
+        <p class="lede" data-i18n="hero_lede"></p>
+        <div class="cta-row">
+          <a class="btn btn-solid" href="#features" data-i18n="cta_features"></a>
+          <a class="btn btn-line" href="#contact" data-i18n="cta_contact"></a>
+        </div>
+      </div>
+      <div class="diagram">
+        <div class="in">
+          <svg class="flow flow-h" id="flow-h" role="img" data-i18n-aria="flow_aria"></svg>
+          <svg class="flow flow-v" id="flow-v" role="img" data-i18n-aria="flow_aria"></svg>
+          <p class="diagram-note" data-i18n="flow_note"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="frame">
+      <div class="stats" id="stats"></div>
+    </div>
+  </section>
+
+  <section class="section section-cells" id="features">
+    <div class="frame">
+      <div class="in">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="f_eyebrow"></p>
+          <h2 data-i18n="f_title"></h2>
+          <p data-i18n="f_lede"></p>
+        </div>
+      </div>
+      <div class="cells c2" id="ext-cells">
+        <div class="cell ext tap" data-group="ext">
+          <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+          <h3 class="m-title" data-i18n="x1_t"></h3>
+          <p class="m-detail" data-i18n="x1_d"></p>
+          <div class="drv-group m-detail">
+            <span class="drv-label" data-i18n="x1_built"></span>
+            <div class="drvs"><span class="drv">Oracle</span><span class="drv">MySQL</span><span class="drv">MSSQL</span><span class="drv">H2</span></div>
+          </div>
+          <div class="drv-group m-detail">
+            <span class="drv-label" data-i18n="x1_more"></span>
+            <div class="drvs"><span class="drv add">PostgreSQL</span><span class="drv add">MariaDB</span><span class="drv add">DB2</span><span class="drv add">Tibero</span><span class="drv add">…</span></div>
+          </div>
+        </div>
+        <div class="cell ext tap" data-group="ext">
+          <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-5"/><path d="M9 8V2M15 8V2"/><path d="M18 8v5a6 6 0 0 1-12 0V8z"/></svg>
+          <h3 class="m-title" data-i18n="x2_t"></h3>
+          <p class="m-detail" data-i18n="x2_d"></p>
+          <div class="pipe m-detail" aria-hidden="true">
+            <div class="pipe-end">
+              <span class="pipe-cap" data-i18n="x2_src"></span>
+              <span class="drv">DB</span><span class="drv" data-i18n="x2_excel"></span><span class="drv" data-i18n="x2_file"></span><span class="drv add" data-i18n="x2_api"></span>
+            </div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-core"><b>Reader</b><span>→</span><b>Processor</b><span>→</span><b>Writer</b></div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-end">
+              <span class="pipe-cap" data-i18n="x2_tgt"></span>
+              <span class="drv">DB</span><span class="drv" data-i18n="x2_file"></span><span class="drv add" data-i18n="x2_api"></span>
+            </div>
+          </div>
+          <p class="pipe-note m-detail" data-i18n="x2_note"></p>
+        </div>
+      </div>
+      <div class="connect">
+        <div class="in">
+          <div class="connect-head">
+            <h3 data-i18n="cn_title"></h3>
+            <p data-i18n="cn_lede"></p>
+          </div>
+          <div class="connect-grid">
+            <div class="cg-dev">
+              <p class="cg-label"><b>2</b><span data-i18n="cn_dev"></span></p>
+              <ol class="dev-list" id="dev-list"></ol>
+            </div>
+            <div class="cg-fw">
+              <p class="cg-label"><b>6</b><span data-i18n="cn_fw"></span></p>
+              <ul class="fw-list" id="fw-list"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cells c3" id="feature-cells"></div>
+    </div>
+  </section>
+
+  <section class="section" id="safety">
+    <div class="frame">
+      <div class="in pad safety">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="s_eyebrow"></p>
+          <h2 data-i18n="s_title"></h2>
+          <p data-i18n="s_lede"></p>
+        </div>
+        <ul class="rows" id="safety-rows"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="testmode">
+    <div class="frame">
+      <div class="in pad">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="tm_eyebrow"></p>
+          <h2 data-i18n="tm_title"></h2>
+          <p data-i18n="tm_lede"></p>
+        </div>
+        <div class="tm-modes" id="tm-modes"></div>
+        <div class="tm-ben" id="tm-ben"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="compare">
+    <div class="frame">
+      <div class="in pad">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="cp_eyebrow"></p>
+          <h2 data-i18n="cp_title"></h2>
+          <p data-i18n="cp_lede"></p>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="cmp-table-wrap"><table class="cmp-table" id="cmp-table"></table></div>
+        <div class="cmp-mobile">
+          <div class="cmp-cards" id="cmp-cards"></div>
+        </div>
+        <div class="fit" id="fit"></div>
+        <p class="cmp-note" data-i18n="cp_note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-cells" id="devx">
+    <div class="frame">
+      <div class="in">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="d_eyebrow"></p>
+          <h2 data-i18n="d_title"></h2>
+          <p data-i18n="d_lede"></p>
+        </div>
+        <div class="split">
+          <div>
+            <h3 data-i18n="dk_title"></h3>
+            <p data-i18n="dk_lede"></p>
+            <ul class="checks" id="docker-checks"></ul>
+          </div>
+          <div class="sandbox">
+            <div class="zones">
+              <div class="zone real">
+                <p class="zone-name" data-i18n="sb_real"></p>
+                <div class="zone-items">
+                  <span class="zi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="sb_prod"></span></span>
+                  <span class="zi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="sb_dev"></span></span>
+                </div>
+                <p class="zone-note" data-i18n="sb_real_note"></p>
+              </div>
+              <div class="zone box">
+                <p class="zone-name"><span class="whale">Docker</span><span data-i18n="sb_box"></span></p>
+                <div class="zone-items">
+                  <span class="zi solid" data-i18n="sb_app"></span>
+                  <span class="zi" data-i18n="sb_src"></span>
+                  <span class="zi" data-i18n="sb_tgt"></span>
+                  <span class="zi" data-i18n="sb_data"></span>
+                </div>
+                <p class="zone-note" data-i18n="sb_box_note"></p>
+              </div>
+            </div>
+            <ol class="sb-flow">
+              <li><b>1</b><span data-i18n="sb_f1"></span></li>
+              <li><b>2</b><span data-i18n="sb_f2"></span></li>
+              <li><b>3</b><span data-i18n="sb_f3"></span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="cells c4" id="devx-cells"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="frame">
+      <div class="in pad">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="t_eyebrow"></p>
+          <h2 data-i18n="t_title"></h2>
+        </div>
+        <div class="core">
+          <div><b>Java 17</b><span data-i18n="k1"></span></div>
+          <div><b>Spring Boot 3</b><span data-i18n="k2"></span></div>
+          <div><b>Spring Batch 5</b><span data-i18n="k3"></span></div>
+          <div><b>MyBatis</b><span data-i18n="k4"></span></div>
+          <div><b>Docker</b><span data-i18n="k5"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="frame">
+      <div class="in pad contact">
+        <h2 data-i18n="c_title"></h2>
+        <p data-i18n="c_lede"></p>
+        <div class="mail-row">
+          <span class="mail" id="mail" data-site="contactEmail"></span>
+          <button class="btn btn-line" type="button" id="copy-mail" data-i18n="copy"></button>
+          <a class="btn btn-solid" id="mailto" data-i18n="c_write"></a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="frame in">
+    <div><strong data-site="productName"></strong> · <span data-site="contactEmail"></span></div>
+    <div class="mono" data-i18n="f_proto"></div>
+  </div>
+</footer>
+
+<dialog class="msheet" id="msheet" aria-labelledby="ms-title">
+  <div class="ms-inner">
+    <div class="ms-handle" aria-hidden="true"></div>
+    <div class="ms-top">
+      <h2 id="ms-title"></h2>
+      <span class="ms-count" id="ms-count"></span>
+      <button class="ms-close" type="button" id="ms-close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="ms-body" id="ms-body"></div>
+  </div>
+</dialog>
+
+<script>
+// site.config.ts 와 같은 역할: 제품명·연락처는 여기서만 바꾼다.
+const SITE = {
+  productName: { ko: '코드 기반 ETL 프레임워크', en: 'Code-based ETL Framework' },
+  contactEmail: 'dvmoomoodv@gmail.com',
+};
+
+const T = {
+  ko: {
+    nav_features: '기능', nav_safety: '안전장치', nav_compare: '비교', nav_devx: '개발 편의',
+    x1_t: 'JDBC 드라이버가 있는 DBMS라면 연결',
+    x1_d: '업계 표준인 Spring 위에서 동작하므로, 드라이버가 제공되는 DB라면 연결할 수 있습니다. DB가 바뀌어도 이관 방식과 안전장치는 그대로입니다.',
+    cn_title: '새 DB를 붙일 때, 개발자는 두 가지만 합니다',
+    cn_lede: 'Spring 표준 위에서 동작하기 때문에 DB 종류가 바뀌어도 나머지 구조는 그대로입니다. 지금 들어 있는 Oracle·MySQL·MSSQL 연결도 같은 방식으로 붙어 있습니다.',
+    cn_dev: '개발자가 하는 일', cn_fw: '프레임워크가 그대로 맡는 일',
+    dv1_t: 'DB 연결 준비', dv1_d: '쓰려는 DB의 드라이버(연결 부품)를 넣고 접속 정보를 입력합니다.',
+    dv2_t: '조회 쿼리 작성', dv2_d: '어떤 데이터를 어떤 조건으로 가져올지 그 DB의 SQL로 적습니다.',
+    fw1_t: '연결 관리', fw1_d: '동시 접속 수를 조절하고 연결을 재사용합니다.',
+    fw2_t: '나눠서 저장', fw2_d: '200건 단위로 나눠 저장해 중간에 멈춰도 안전합니다.',
+    fw3_t: '사고 차단', fw3_d: '중복 실행과 기존 데이터 덮어쓰기를 막습니다.',
+    fw4_t: '실패 복구', fw4_d: '실패한 부분만 골라 다시 실행합니다.',
+    fw5_t: '진행 상황과 보고서', fw5_d: '진행률을 화면으로 보고, 결과를 4가지 형식으로 받습니다.',
+    fw6_t: '알림', fw6_d: '시작·완료·실패를 텔레그램과 화면으로 알립니다.',
+    x1_built: '기본 구성', x1_more: '드라이버를 추가해 연결 (예)',
+    x2_t: 'Reader · Processor · Writer로 외부 연계까지',
+    x2_d: '모든 이관은 읽기 → 변환 → 쓰기 세 단계로 나뉩니다. 외부 시스템과 연계해야 하면 해당 단계만 구현해 붙이면 되고, 실행 게이트·재시도·진행률·보고서는 그대로 적용됩니다.',
+    x2_src: '읽어 오는 곳', x2_tgt: '보내는 곳', x2_excel: '엑셀', x2_file: '파일', x2_api: '외부 API',
+    x2_note: '엑셀 이관과 파일 이관도 이 방식으로 붙인 모듈입니다. 점선은 필요할 때 직접 추가하는 연계입니다.',
+    ms_close: '닫기', ms_all: n => `${n}개 모두 보기`, ms_n: n => `${n}개`,
+    g_ext: '확장성', g_feat: '핵심 기능', g_devx: '개발 편의 기능', g_safety: '안전장치',
+    g_cmp: '항목별 비교', g_fw: '프레임워크가 맡는 일', g_tmben: '테스트 모드의 장점',
+    tm_eyebrow: '테스트 모드',
+    tm_title: '전체를 돌리기 전에, 단계별로 확인합니다',
+    tm_lede: '이관은 읽기 → 변환 → 저장 순서로 진행됩니다. 테스트 모드는 이 중 어디까지 실행할지 정해서, 데이터를 넣지 않거나 아주 조금만 넣고 결과를 미리 봅니다.',
+    st_r: '읽기', st_p: '변환', st_w: '저장',
+    tm1_q: '원본 DB에서 데이터가 제대로 읽히는지', tm1_n: '기본 5건 · 저장하지 않음',
+    tm2_q: '변환 규칙이 맞는지, 오류가 몇 건인지', tm2_n: '100건 · 변환 오류 집계 · 저장하지 않음',
+    tm3_q: '실제로 저장까지 되는지 소량으로', tm3_n: '최대 100건 저장 · 시험용 표시 MIG-TEST',
+    tm4_q: '확인이 끝나면 전체 이관', tm4_n: '전체 저장 · 표시 MIG-DATA',
+    tb1_t: '문제를 단계별로 좁혀 찾습니다', tb1_d: '읽기, 변환, 저장 중 어디서 틀렸는지 바로 압니다.',
+    tb2_t: '데이터를 넣지 않고 확인합니다', tb2_d: '읽기·변환 시험은 받는 쪽 DB에 아무것도 저장하지 않습니다.',
+    tb3_t: '넣어 봐도 정리가 쉽습니다', tb3_d: '저장 시험은 최대 100건만 넣고 시험용 표시를 남겨, 그 행만 골라 지울 수 있습니다.',
+    tb4_t: '전체 실행 전에 시간을 아낍니다', tb4_d: '전량을 다 돌린 뒤에 실패를 발견하는 대신, 몇 건으로 먼저 확인합니다.',
+    cp_eyebrow: '비교',
+    cp_title: '일반 ETL 도구와 무엇이 다른가',
+    cp_lede: '장점만 적지 않았습니다. 약점도 같은 표에 적어 두었으니 우리 프로젝트에 맞는지 판단하는 데 쓰세요.',
+    cp_note: '특정 제품이 아니라 일반적인 도구 유형과 비교했습니다. 실제 기능은 제품마다 다릅니다.',
+    col_item: '항목', col_ours: '이 프레임워크', col_gui: 'GUI 기반 ETL 도구', col_script: '직접 작성한 스크립트',
+    seg_label: '비교 대상',
+    mk_g: '강점', mk_p: '보통', mk_w: '약점',
+    fit_yes: '잘 맞는 경우', fit_no: '맞지 않는 경우',
+    cta_features: '기능 살펴보기', cta_contact: '도입 문의',
+    hero_title: '안전하고 세밀한 데이터 이관',
+    hero_lede: '옮기기 전에 먼저 점검하고, 문제가 보이면 멈춥니다. 단계별 시험부터 실제 이관까지 한 흐름으로 관리하는 Spring Batch 기반 프레임워크입니다.',
+    flow_aria: '소스 DB에서 실행 게이트와 실행 전 점검을 지나 배치 Job이 타겟 DB에 적재하는 흐름',
+    flow_note: '모든 실행은 두 개의 차단 지점을 지나야 타겟에 닿습니다.',
+    f_src_n: '소스 DB', f_src_1: '읽기만 함',
+    f_gate_n: '실행 게이트', f_gate_1: '한 번에 하나',
+    f_chk_n: '실행 전 점검', f_chk_1: '기존 데이터·매핑',
+    f_job_n: '배치 Job', f_job_1: '청크 200건',
+    f_tgt_n: '타겟 DB', f_tgt_1: '삭제 없이 적재',
+    stop_tag: '차단 지점', stop_short: 'STOP',
+    st1: '자동 테스트', st2: '보고서 형식', st3: '테스트 모드', st4: '내장 예제 테이블',
+    f_eyebrow: '기능',
+    f_title: '이관에 필요한 기능을 한 프레임워크에',
+    f_lede: '실행, 재시도, 모니터링, 보고까지 별도 도구 없이 처리합니다.',
+    s_eyebrow: '안전장치',
+    s_title: '사고는 실행 전에 막습니다',
+    s_lede: '두 작업이 겹치거나, 이미 있는 데이터 위에 다시 쓰거나, 덜 끝난 매핑이 그대로 도는 일. 이관 사고 대부분이 여기서 납니다.',
+    d_eyebrow: '개발·운영 편의',
+    d_title: '설치부터 운영까지 손이 덜 갑니다',
+    d_lede: 'Spring Boot와 Docker 위에서 환경 구성, 코드 작성, 운영 점검에 드는 반복 작업을 줄였습니다.',
+    dk_title: '실제 DB를 건드리지 않고 먼저 시험합니다',
+    dk_lede: '운영 DB나 개발 DB에서 바로 시험하면 잘못 들어간 데이터가 그대로 남고, 같은 DB를 쓰는 다른 사람의 작업에도 영향을 줍니다. 그래서 Docker로 따로 띄우는 샘플·데모 환경을 함께 제공합니다. 같은 프로그램, 같은 안전장치로 먼저 돌려 보고, 확인한 뒤에 실제 DB로 넘어갑니다.',
+    dk1: '앱과 샘플 Oracle·MySQL이 명령 몇 줄로 함께 뜹니다',
+    dk2: '예제 서비스 12개 테이블과 고정 데이터가 자동으로 들어갑니다 (회원 1,000 · 게시글 5,000 · 댓글 20,000)',
+    dk3: '시험이 끝나면 지우고 언제든 처음 상태로 다시 시작합니다',
+    dk4: '실제 이관과 같은 흐름을 지나므로, 데모가 통과하면 설치와 설정도 함께 검증됩니다',
+    sb_real: '실제 환경', sb_prod: '운영 DB', sb_dev: '개발 DB', sb_real_note: '시험 단계에서는 연결하지 않습니다',
+    sb_box: '샘플·데모 환경', sb_app: '이관 프로그램', sb_src: '샘플 Oracle (보내는 쪽)', sb_tgt: '샘플 MySQL (받는 쪽)', sb_data: '예제 데이터 12개 테이블',
+    sb_box_note: '마음껏 돌리고, 지우고, 다시 시작합니다',
+    sb_f1: '샘플 환경에서 시험', sb_f2: '결과와 안전장치 확인', sb_f3: '실제 DB에 적용',
+    t_eyebrow: '핵심 기술', t_title: '검증된 표준 기술 위에서',
+    k1: '장기 지원되는 Java 버전', k2: '기업용 Java 애플리케이션의 표준', k3: '대용량 일괄 처리 표준 프레임워크', k4: 'SQL을 그대로 쓰는 데이터 처리', k5: '어디서나 같은 실행 환경',
+    c_title: '도입 문의',
+    c_lede: '적용 범위, 지금 쓰는 DB 구성, 설치 방식에 대해 메일로 물어보세요.',
+    c_write: '메일 쓰기', copy: '복사', copied: '복사됨', copy_fail: '선택됨 · Ctrl+C',
+    f_proto: '소개페이지 시안 v10 · 2026-10-22',
+  },
+  en: {
+    nav_features: 'Features', nav_safety: 'Safeguards', nav_compare: 'Compare', nav_devx: 'Developer experience',
+    x1_t: 'Connect any database with a JDBC driver',
+    x1_d: 'It runs on Spring, the industry standard, so any database that ships a driver can be connected. When the database changes, the migration flow and safeguards stay the same.',
+    cn_title: 'Adding a database takes two jobs from a developer',
+    cn_lede: 'Because it runs on standard Spring, everything else stays the same when the database changes. The Oracle, MySQL and MSSQL connections in the product today were added the same way.',
+    cn_dev: 'What a developer does', cn_fw: 'What the framework keeps doing',
+    dv1_t: 'Set up the connection', dv1_d: 'Add the database driver (the connector) and enter the connection details.',
+    dv2_t: 'Write the queries', dv2_d: 'Describe which data to read, and under which conditions, in that database’s SQL.',
+    fw1_t: 'Connection handling', fw1_d: 'Limits concurrent connections and reuses them.',
+    fw2_t: 'Saving in batches', fw2_d: 'Saves 200 rows at a time, so a stop midway is safe.',
+    fw3_t: 'Incident prevention', fw3_d: 'Blocks overlapping runs and overwrites of existing data.',
+    fw4_t: 'Recovery', fw4_d: 'Reruns only the parts that failed.',
+    fw5_t: 'Progress and reports', fw5_d: 'Watch progress on screen and get results in 4 formats.',
+    fw6_t: 'Alerts', fw6_d: 'Start, finish and failure alerts via Telegram and on screen.',
+    x1_built: 'Included', x1_more: 'Add a driver, for example',
+    x2_t: 'Extend with reader, processor and writer',
+    x2_d: 'Every migration splits into read → transform → write. To integrate an external system, implement just that step; the run gate, retries, progress tracking and reports apply as they are.',
+    x2_src: 'Read from', x2_tgt: 'Write to', x2_excel: 'Excel', x2_file: 'Files', x2_api: 'External API',
+    x2_note: 'Excel loads and file transfers were added the same way. Dashed items are integrations you add when needed.',
+    ms_close: 'Close', ms_all: n => `View all ${n}`, ms_n: n => `${n} items`,
+    g_ext: 'Extensibility', g_feat: 'Core features', g_devx: 'Developer conveniences', g_safety: 'Safeguards',
+    g_cmp: 'Side-by-side comparison', g_fw: 'What the framework handles', g_tmben: 'Why test modes help',
+    tm_eyebrow: 'Test modes',
+    tm_title: 'Check each step before running it all',
+    tm_lede: 'A migration runs read → transform → save. Test modes decide how far a run goes, so you can preview results without saving anything, or by saving just a few rows.',
+    st_r: 'Read', st_p: 'Transform', st_w: 'Save',
+    tm1_q: 'Is the source data read correctly?', tm1_n: '5 rows by default · nothing saved',
+    tm2_q: 'Are the rules right, and how many rows fail?', tm2_n: '100 rows · error count · nothing saved',
+    tm3_q: 'Does saving work, on a small sample?', tm3_n: 'Up to 100 rows saved · marked MIG-TEST',
+    tm4_q: 'Once verified, the full migration', tm4_n: 'All rows saved · marked MIG-DATA',
+    tb1_t: 'Narrow problems down by step', tb1_d: 'You know right away whether reading, transforming or saving went wrong.',
+    tb2_t: 'Check without saving data', tb2_d: 'Read and transform tests save nothing to the target database.',
+    tb3_t: 'Easy to clean up', tb3_d: 'Save tests write at most 100 rows with a test mark, so you can remove just those rows.',
+    tb4_t: 'Save time before the full run', tb4_d: 'Check with a few rows first instead of finding a failure after running everything.',
+    cp_eyebrow: 'Comparison',
+    cp_title: 'How it compares with typical ETL tools',
+    cp_lede: 'Weaknesses sit in the same table as strengths, so you can judge whether it fits your project.',
+    cp_note: 'Compared with typical tool categories, not a specific product. Actual features vary by vendor.',
+    col_item: 'Criterion', col_ours: 'This framework', col_gui: 'GUI-based ETL tools', col_script: 'Hand-written scripts',
+    seg_label: 'Compare with',
+    mk_g: 'Strength', mk_p: 'Partial', mk_w: 'Weakness',
+    fit_yes: 'A good fit', fit_no: 'Not a fit',
+    cta_features: 'Explore features', cta_contact: 'Contact us',
+    hero_title: 'Safe, precise data migration',
+    hero_lede: 'It checks before it moves anything, and stops when it sees a problem. A Spring Batch framework that takes you from step-by-step test runs to the real migration in one flow.',
+    flow_aria: 'From the source database through the run gate and pre-run check to a batch job that loads the target database',
+    flow_note: 'Every run passes two stop points before it reaches the target.',
+    f_src_n: 'Source DB', f_src_1: 'Read only',
+    f_gate_n: 'Run gate', f_gate_1: 'One at a time',
+    f_chk_n: 'Pre-run check', f_chk_1: 'Data & mappings',
+    f_job_n: 'Batch job', f_job_1: '200-row chunks',
+    f_tgt_n: 'Target DB', f_tgt_1: 'Insert only',
+    stop_tag: 'STOP POINTS', stop_short: 'STOP',
+    st1: 'automated tests', st2: 'report formats', st3: 'test modes', st4: 'built-in sample tables',
+    f_eyebrow: 'Features',
+    f_title: 'Everything a migration needs, in one framework',
+    f_lede: 'Run, retry, monitor and report without extra tools.',
+    s_eyebrow: 'Safeguards',
+    s_title: 'Stopped before it runs',
+    s_lede: 'Two runs overlap, rows are written over existing data, an unfinished mapping goes live. Most migration incidents start here.',
+    d_eyebrow: 'Developer experience',
+    d_title: 'Less work from install to operations',
+    d_lede: 'Built on Spring Boot and Docker to cut the repetitive work of setup, coding and day-to-day checks.',
+    dk_title: 'Test first, without touching real databases',
+    dk_lede: 'Testing straight against a production or development database leaves bad rows behind and gets in the way of everyone else using it. So a separate Docker sample and demo environment comes with the product. Run it with the same program and the same safeguards, check the results, then move on to the real databases.',
+    dk1: 'The app and sample Oracle and MySQL start together with a few commands',
+    dk2: '12 sample tables with fixed data load automatically (1,000 members · 5,000 posts · 20,000 comments)',
+    dk3: 'When you are done, wipe it and start fresh any time',
+    dk4: 'It follows the same path as a real migration, so a passing demo also confirms your install and settings',
+    sb_real: 'Real environment', sb_prod: 'Production DB', sb_dev: 'Development DB', sb_real_note: 'Not connected while you test',
+    sb_box: 'Sample and demo environment', sb_app: 'Migration app', sb_src: 'Sample Oracle (source)', sb_tgt: 'Sample MySQL (target)', sb_data: '12 sample tables',
+    sb_box_note: 'Run it, wipe it, start again',
+    sb_f1: 'Test in the sample environment', sb_f2: 'Check results and safeguards', sb_f3: 'Apply to the real databases',
+    t_eyebrow: 'Core technology', t_title: 'Built on proven standards',
+    k1: 'Long-term support Java release', k2: 'The standard for enterprise Java apps', k3: 'The standard framework for large batch jobs', k4: 'Data access with plain SQL', k5: 'The same runtime everywhere',
+    c_title: 'Talk to us',
+    c_lede: 'Ask about scope, the databases you run today or how to install.',
+    c_write: 'Write an email', copy: 'Copy', copied: 'Copied', copy_fail: 'Selected · Ctrl+C',
+    f_proto: 'Landing page prototype v10 · 2026-10-22',
+  },
+};
+
+const ICON = {
+  code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+  order: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  retry: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2M15 8V2"/><path d="M18 8v5a6 6 0 0 1-12 0V8z"/>',
+  sheet: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  wand: '<path d="m15 4 5 5L9 20H4v-5z"/><path d="m13 6 5 5"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/>',
+  monitor: '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  tick: '<path d="M20 6 9 17l-5-5"/>',
+  minus: '<path d="M5 12h14"/>',
+};
+const svgIcon = (k, size = 20, w = 1.5) =>
+  `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+
+const STATS = [['188', 'st1'], ['4', 'st2'], ['4', 'st3'], ['12', 'st4']];
+
+const FEATURES = [
+  ['code', { ko: ['코드로 정의하는 변환', '변환 규칙을 MyBatis SQL과 Java Processor로 씁니다. 모든 규칙이 코드 리뷰와 버전 관리 대상이 됩니다.'],
+             en: ['Transformations as code', 'Write rules in MyBatis SQL and Java processors, so every rule goes through code review and version control.'] }],
+  ['order', { ko: ['테이블·시나리오 이관', '테이블 하나를 즉시 또는 Cron으로 돌리고, 시나리오로 여러 테이블을 정해진 순서대로 실행합니다. 기간 필터와 날짜 분할을 지원합니다.'],
+              en: ['Table and scenario runs', 'Run one table now or on a cron schedule, or chain tables in a fixed order with scenarios. Date filters and date splitting included.'] }],
+  ['retry', { ko: ['청크 처리와 재시도', '기본 200건 단위로 처리하고 청크마다 상태를 기록합니다. 실패한 청크만 다시 돌리고, 에러 유형별로 재시도 정책을 다르게 둡니다.'],
+              en: ['Chunks and retries', 'Processes 200 rows per chunk by default and records every chunk. Retry only failed chunks, with retry policies per error type.'] }],
+  ['pulse', { ko: ['운영 가시성', '청크별 진행률, 요청 JSON까지 남는 실행 이력, 로그·오류 조회, 5분 간격 부하 추이(7일 보관)를 한 화면에서 봅니다.'],
+              en: ['Visibility', 'Per-chunk progress, run history including the request JSON, logs and errors, and 5-minute load history kept for 7 days.'] }],
+  ['file', { ko: ['보고서', 'Job·요약 보고서를 JSON, CSV, XLSX, PDF로 내보내고, 큰 묶음은 비동기 zip으로 받습니다.'],
+             en: ['Reports', 'Export job and summary reports as JSON, CSV, XLSX or PDF, or as an async zip bundle.'] }],
+  ['gauge', { ko: ['부하 제어', '청크·페이지 지연과 적응형 지연을 겁니다. 금지 시간대에는 현재 청크를 마치고 멈춘 뒤 허용 시간에 자동으로 다시 시작합니다.'],
+              en: ['Load control', 'Chunk and page delays plus adaptive delay. In blackout hours a run stops after the current chunk and resumes on its own.'] }],
+  ['bell', { ko: ['알림', '시작·완료·실패·경고를 텔레그램과 화면 알림으로 받고, 지난 알림은 검색합니다.'],
+             en: ['Alerts', 'Start, finish, failure and warning alerts via Telegram and in-app notifications, with search.'] }],
+  ['plug', { ko: ['플러그인 구조', '업무 단위로 플러그인을 나누고 설정 한 줄로 켜고 끕니다. DataSource 조합이 맞지 않으면 기동할 때 바로 알려 줍니다.'],
+             en: ['Plugins', 'Split work into plugins and toggle each with one setting. Mismatched data sources fail fast at startup.'] }],
+  ['sheet', { ko: ['엑셀 이관', '엑셀을 올리면 바로 검증하고, 미리보기와 오류 행만 모은 xlsx를 제공합니다.'],
+              en: ['Excel loads', 'Upload a spreadsheet for instant validation, a preview and an xlsx of rejected rows.'] }],
+];
+
+const SAFETY = [
+  { ko: ['실행 게이트', '시스템 전체에서 이관은 한 번에 하나만 돕니다. 실행 중 들어온 요청은 409로 거절합니다.', '409 Conflict · 실행 중인 이관이 있습니다'],
+    en: ['Single run gate', 'Only one migration runs across the whole system. Requests that arrive mid-run get a 409.', '409 Conflict · a migration is already running'] },
+  { ko: ['기존 데이터 차단', '타겟 테이블에 데이터가 있으면 적재를 시작하기 전에 멈춥니다.', '타겟에 기존 데이터가 720건 있어 적재를 중단했습니다'],
+    en: ['Existing-data stop', 'If the target table already holds rows, loading stops before it begins.', 'Loading stopped: the target already has 720 rows'] },
+  { ko: ['실행 전 점검', '샘플 변환 결과를 타겟 컬럼 정의와 대조합니다. 길이, NOT NULL, 타입, PK 중복을 봅니다.', 'CSV · XLSX 점검 보고서'],
+    en: ['Pre-run check', 'Compares sample output with the target columns: length, NOT NULL, type and duplicate keys.', 'Check report as CSV or XLSX'] },
+  { ko: ['미완 매핑 차단', '매핑 코드에 TODO가 남아 있으면 실행하지 않습니다.', 'TODO 0 일 때만 실행'],
+    en: ['Unfinished-mapping block', 'A mapping that still contains TODOs does not run.', 'Runs only at TODO 0'] },
+  { ko: ['삭제하지 않는 적재', '제품은 TRUNCATE·DELETE를 실행하지 않습니다. 적재 방식은 쿼리로 정하고, 정리는 사람이 합니다.', 'INSERT · ON DUPLICATE KEY · MERGE'],
+    en: ['No deletes, ever', 'The product never runs TRUNCATE or DELETE. Load behavior lives in the query; clean-up is done by people.', 'INSERT · ON DUPLICATE KEY · MERGE'] },
+];
+
+const DEVX = [
+  ['box', { ko: ['내장 예제 서비스', '게시판·회원·통계 등 12개 테이블과 플러그인 5개가 들어 있습니다. 실제 이관과 같은 코드 경로를 지나므로 설치 검증에 씁니다.'],
+            en: ['Built-in sample service', '12 tables (boards, members, stats) and 5 plugins ship with the product. They follow the same code path as a real run, so they double as an install check.'] }],
+  ['wand', { ko: ['코드 생성기', '테이블 인벤토리 CSV에서 Reader·Processor·Writer·DTO·Mapper 파일셋과 작업용 SQL을 한 번에 만듭니다.'],
+             en: ['Code generator', 'Generates reader, processor, writer, DTO and mapper files plus working SQL from a table inventory CSV.'] }],
+  ['sheet', { ko: ['DDL 변환 도구', 'CREATE TABLE 문으로 컬럼 정의 표, Java 모델, Processor 초안, Writer 매퍼 XML(MySQL·Oracle·MSSQL·PostgreSQL)을 만듭니다.'],
+              en: ['DDL tools', 'Turn a CREATE TABLE statement into a column sheet, Java models, a processor draft and writer mapper XML for MySQL, Oracle, MSSQL or PostgreSQL.'] }],
+  ['book', { ko: ['화면 안의 안내서', '시작하기 화면, 안내서 11편, 화면마다 도움말, 메뉴 검색이 운영 UI에 들어 있습니다.'],
+             en: ['Guides inside the app', 'A start page, 11 guides, help on every screen and menu search are built into the operations UI.'] }],
+  ['monitor', { ko: ['Spring 표준 운영 도구', 'Actuator 상태·지표, Spring Boot Admin(JVM·GC·스레드 덤프), OpenAPI 문서를 그대로 씁니다.'],
+                en: ['Standard Spring tooling', 'Actuator health and metrics, Spring Boot Admin for JVM, GC and thread dumps, and OpenAPI docs.'] }],
+  ['layers', { ko: ['운영용 컨테이너 이미지', '멀티스테이지 빌드, 비root 실행, 헬스체크, 컨테이너 메모리 비율로 정하는 힙이 기본입니다.'],
+               en: ['Production-ready image', 'Multi-stage build, non-root user, health check and a heap sized as a share of container memory.'] }],
+  ['sliders', { ko: ['프로파일과 토글', 'docker·dev·stg·prd 프로파일을 나눕니다. 서버 환경은 접속 정보를 환경변수로만 받고, prd에서는 API 문서가 꺼집니다.'],
+                en: ['Profiles and toggles', 'Separate docker, dev, stg and prd profiles. Server profiles read credentials from environment variables only, and prd turns API docs off.'] }],
+  ['check', { ko: ['테스트와 구조 검사', 'JUnit 5 테스트 188개와 ArchUnit 계층 의존 검사가 함께 돕니다.'],
+              en: ['Tests and architecture checks', '188 JUnit 5 tests plus ArchUnit checks on layer dependencies.'] }],
+];
+
+// 비교표: [항목, 이 프레임워크, GUI 기반 ETL 도구, 직접 작성한 스크립트], 각 칸 [표시(g/p/w), 문구]
+const COMPARE = [
+  { ko: ['변환 규칙 작성', ['g', 'SQL과 Java 코드로 작성, 코드 리뷰·버전 관리'], ['p', '화면에서 끌어놓기로 작성, 변경 비교가 어려움'], ['p', 'SQL 파일로 작성, 구조가 사람마다 다름']],
+    en: ['Writing transformations', ['g', 'SQL and Java code, reviewed and versioned'], ['p', 'Drag-and-drop designer; changes are hard to diff'], ['p', 'Plain SQL files; structure varies by author']] },
+  { ko: ['중복 실행·덮어쓰기 방지', ['g', '실행 게이트와 기존 데이터 차단이 기본 내장'], ['p', 'Job 설계와 설정으로 직접 구성'], ['w', '직접 구현하거나 사람이 확인']],
+    en: ['Overlap and overwrite protection', ['g', 'Run gate and existing-data stop built in'], ['p', 'Built yourself through job design and settings'], ['w', 'Hand-built, or checked by people']] },
+  { ko: ['실행 전 검증', ['g', '길이·NOT NULL·타입·PK 중복 점검 보고서'], ['p', '제품별 데이터 품질 기능을 따로 구성'], ['w', '실행해 보고 오류로 확인']],
+    en: ['Pre-run validation', ['g', 'Report on length, NOT NULL, type and duplicate keys'], ['p', 'Data-quality features set up separately'], ['w', 'Run it and find out from errors']] },
+  { ko: ['실패 후 재실행', ['g', '실패한 청크만 재시도, 에러 유형별 정책'], ['g', '대부분 재시작 지점 지원'], ['w', '처음부터 다시 실행하는 경우가 많음']],
+    en: ['Recovery after failure', ['g', 'Retry failed chunks only, per-error policies'], ['g', 'Most support restart points'], ['w', 'Often rerun from the start']] },
+  { ko: ['모니터링·보고서', ['g', '청크 진행률, 실행 이력, 4개 형식 보고서'], ['g', '제품 관리 콘솔 제공'], ['w', '로그를 직접 확인']],
+    en: ['Monitoring and reports', ['g', 'Chunk progress, run history, reports in 4 formats'], ['g', 'Vendor console included'], ['w', 'Read the logs yourself']] },
+  { ko: ['환경 구성', ['g', 'Docker로 앱·DB·예제 데이터를 한 번에'], ['p', '서버 설치와 라이선스 설정 필요'], ['g', '별도 설치 없음']],
+    en: ['Setting up', ['g', 'Docker brings up the app, databases and sample data'], ['p', 'Server install and license setup'], ['g', 'Nothing to install']] },
+  { ko: ['필요한 인력', ['w', 'Java·Spring·SQL 개발자 필요'], ['g', '비개발자도 시작하기 쉬움'], ['p', 'SQL을 아는 사람']],
+    en: ['Who can use it', ['w', 'Needs Java, Spring and SQL developers'], ['g', 'Approachable for non-developers'], ['p', 'Anyone who knows SQL']] },
+  { ko: ['연결 가능한 DB', ['g', 'JDBC 드라이버가 있는 DBMS는 DataSource로 등록'], ['g', '커넥터가 많음'], ['p', '쓰는 DB에 한정']],
+    en: ['Supported databases', ['g', 'Any DBMS with a JDBC driver, as a DataSource'], ['g', 'Large connector catalog'], ['p', 'Whatever you script against']] },
+  { ko: ['외부 시스템 연계', ['g', 'Reader·Writer를 추가해 연계, 안전장치·재시도는 그대로'], ['g', 'API·파일 커넥터 제공'], ['p', '연계마다 따로 작성']],
+    en: ['External integrations', ['g', 'Add a reader or writer; safeguards and retries still apply'], ['g', 'API and file connectors included'], ['p', 'Written separately for each one']] },
+  { ko: ['실시간 동기화 (CDC)', ['w', '지원하지 않음, 일괄 이관 전용'], ['p', '제품에 따라 지원'], ['w', '직접 구현']],
+    en: ['Real-time sync (CDC)', ['w', 'Not supported; batch migration only'], ['p', 'Depends on the product'], ['w', 'Build it yourself']] },
+  { ko: ['실행 규모', ['w', '앱 1대, 시스템 전체에서 한 번에 하나'], ['g', '분산·병렬 실행 지원'], ['p', '병렬은 가능하나 관리가 어려움']],
+    en: ['Scale-out', ['w', 'One app instance, one run at a time'], ['g', 'Distributed and parallel runs'], ['p', 'Parallel is possible but hard to manage']] },
+];
+const FIT = {
+  ko: { yes: ['JDBC로 연결되는 DBMS 간 일괄 이관', '변환 규칙이 많고 코드 리뷰가 필요한 프로젝트', 'DB와 사내 시스템·외부 API 연계가 섞인 이관', '재실행·덮어쓰기 사고를 막아야 하는 운영 이관'],
+        no: ['실시간 동기화나 스트리밍', '개발자 없이 운영하는 데이터 파이프라인', '여러 서버에 나눠 대량 병렬 처리해야 할 때'] },
+  en: { yes: ['Batch moves between any JDBC-reachable databases', 'Projects with many rules that need code review', 'Migrations that mix databases with in-house systems or APIs', 'Production migrations where reruns and overwrites must not happen'],
+        no: ['Real-time sync or streaming', 'Pipelines run without developers', 'Workloads that must be spread across many servers'] },
+};
+const MK = {
+  g: '<circle cx="12" cy="12" r="9.5" fill="currentColor"/><path d="m7.5 12.2 3 3 6-6.4" fill="none" style="stroke:var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  p: '<circle cx="12" cy="12" r="8.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.25a8.75 8.75 0 0 1 0 17.5z" fill="currentColor"/>',
+  w: '<circle cx="12" cy="12" r="8.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+};
+const mk = m => `<svg class="mk mk-${m}" viewBox="0 0 24 24" role="img" aria-label="${T[lang]['mk_' + m]}">${MK[m]}</svg>`;
+
+function renderCompare() {
+  const d = T[lang];
+  document.getElementById('legend').innerHTML = ['g', 'p', 'w'].map(m => `<span>${mk(m)}${esc(d['mk_' + m])}</span>`).join('');
+  const cell = ([m, t]) => `<div class="cell-mk">${mk(m)}<span class="tx-${m}">${esc(t)}</span></div>`;
+  document.getElementById('cmp-table').innerHTML =
+    `<thead><tr><th scope="col">${esc(d.col_item)}</th><th scope="col" class="ours">${esc(d.col_ours)}</th><th scope="col">${esc(d.col_gui)}</th><th scope="col">${esc(d.col_script)}</th></tr></thead><tbody>` +
+    COMPARE.map(r => { const x = r[lang]; return `<tr><th scope="row">${esc(x[0])}</th><td class="ours">${cell(x[1])}</td><td>${cell(x[2])}</td><td>${cell(x[3])}</td></tr>`; }).join('') +
+    '</tbody>';
+  const line = (cls, who, [m, t]) => `<div class="cmp-line ${cls} m-detail">${mk(m)}<span class="who">${esc(who)}</span><span class="tx">${esc(t)}</span></div>`;
+  document.getElementById('cmp-cards').innerHTML = COMPARE.map(r => {
+    const x = r[lang];
+    return `<div class="cmp-card tap" data-group="cmp"><div class="cmp-sum">${mk(x[1][0])}<h3 class="m-title">${esc(x[0])}</h3></div>` +
+      `${line('ours', d.col_ours, x[1])}${line('other', d.col_gui, x[2])}${line('other', d.col_script, x[3])}</div>`;
+  }).join('');
+  const li = (arr, ic) => arr.map(t => `<li>${svgIcon(ic, 18, 2)}<span>${esc(t)}</span></li>`).join('');
+  document.getElementById('fit').innerHTML =
+    `<div><h3>${esc(d.fit_yes)}</h3><ul>${li(FIT[lang].yes, 'tick')}</ul></div>` +
+    `<div class="no"><h3>${esc(d.fit_no)}</h3><ul>${li(FIT[lang].no, 'minus')}</ul></div>`;
+}
+
+// 테스트 모드: [모드, 실행 단계 수(읽기·변환·저장 중 몇 단계까지), 문구 키]
+const MODES = [['READER_TEST', 1, 'tm1'], ['PROCESSOR_TEST', 2, 'tm2'], ['WRITER_TEST', 3, 'tm3'], ['NORMAL', 3, 'tm4']];
+function renderTestModes() {
+  const d = T[lang];
+  document.getElementById('tm-modes').innerHTML = MODES.map(([name, reach, k]) =>
+    `<div class="tm-row${name === 'NORMAL' ? ' full' : ''}"><div><p class="tm-name">${name}</p><p class="tm-q">${esc(d[k + '_q'])}</p></div>` +
+    `<div><div class="tm-bar">${['st_r', 'st_p', 'st_w'].map((s, i) => `<span class="tm-seg ${i < reach ? 'on' : 'off'}">${esc(d[s])}</span>`).join('')}</div>` +
+    `<p class="tm-note">${esc(d[k + '_n'])}</p></div></div>`).join('');
+  document.getElementById('tm-ben').innerHTML = ['tb1', 'tb2', 'tb3', 'tb4'].map(k =>
+    `<div class="tap" data-group="tmben"><h4 class="m-title">${esc(d[k + '_t'])}</h4><p class="m-detail">${esc(d[k + '_d'])}</p></div>`).join('');
+}
+
+// 새 DB 연결: 개발자가 하는 일 2가지 / 프레임워크가 그대로 맡는 일 6가지
+function renderConnect() {
+  const d = T[lang];
+  document.getElementById('dev-list').innerHTML = ['dv1', 'dv2'].map(k =>
+    `<li><h4>${esc(d[k + '_t'])}</h4><p>${esc(d[k + '_d'])}</p></li>`).join('');
+  document.getElementById('fw-list').innerHTML = ['fw1', 'fw2', 'fw3', 'fw4', 'fw5', 'fw6'].map(k =>
+    `<li class="tap" data-group="fw">${svgIcon('tick', 18, 2)}<h4 class="m-title">${esc(d[k + '_t'])}</h4><p class="m-detail">${esc(d[k + '_d'])}</p></li>`).join('');
+}
+
+
+let lang = 'ko';
+try { const s = localStorage.getItem('lang'); if (s === 'ko' || s === 'en') lang = s; } catch (e) {}
+
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+function renderLists() {
+  document.getElementById('stats').innerHTML = STATS.map(([n, k]) =>
+    `<div class="stat"><b>${n}</b><span>${esc(T[lang][k])}</span></div>`).join('');
+  const cells = (list, g) => list.map(([ic, c]) =>
+    `<div class="cell tap" data-group="${g}">${svgIcon(ic)}<h3 class="m-title">${esc(c[lang][0])}</h3><p class="m-detail">${esc(c[lang][1])}</p></div>`).join('');
+  document.getElementById('feature-cells').innerHTML = cells(FEATURES, 'feat');
+  document.getElementById('devx-cells').innerHTML = cells(DEVX, 'devx');
+  document.getElementById('safety-rows').innerHTML = SAFETY.map(s =>
+    `<li class="row tap" data-group="safety">${svgIcon('shield', 18)}<h3 class="m-title">${esc(s[lang][0])}</h3><p class="m-detail">${esc(s[lang][1])}</p><code class="m-detail">${esc(s[lang][2])}</code></li>`).join('');
+  document.getElementById('docker-checks').innerHTML = ['dk1', 'dk2', 'dk3', 'dk4'].map(k =>
+    `<li>${svgIcon('tick', 16, 2)}<span>${esc(T[lang][k])}</span></li>`).join('');
+  renderCompare();
+  renderConnect();
+  renderTestModes();
+}
+
+// ---------- 흐름도 (정지 그림) ----------
+const NS = 'http://www.w3.org/2000/svg';
+const KEYS = ['src', 'gate', 'chk', 'job', 'tgt'];
+function el(name, attrs, parent) {
+  const n = document.createElementNS(NS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function arrowDefs(svg, id) {
+  const defs = el('defs', {}, svg);
+  const m = el('marker', { id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs);
+  el('path', { class: 'arw-head', d: 'M0 0L10 5L0 10z' }, m);
+}
+(function buildH() {
+  const svg = document.getElementById('flow-h');
+  svg.setAttribute('viewBox', '0 0 672 172');
+  arrowDefs(svg, 'ah');
+  const W = 108, G = 28, X0 = 10, Y = 16, H = 92;
+  KEYS.forEach((k, i) => {
+    const x = X0 + i * (W + G), cx = x + W / 2;
+    el('rect', { class: 'box' + (i === 1 || i === 2 ? ' stop' : ''), x, y: Y, width: W, height: H, rx: 8 }, svg);
+    el('text', { class: 'nm', x: cx, y: Y + 40, 'text-anchor': 'middle', 'data-i18n': `f_${k}_n` }, svg);
+    el('text', { class: 'ln', x: cx, y: Y + 62, 'text-anchor': 'middle', 'data-i18n': `f_${k}_1` }, svg);
+    if (i < 4) el('path', { class: 'arw', d: `M${x + W + 4} ${Y + H / 2}H${x + W + G - 4}`, 'marker-end': 'url(#ah)' }, svg);
+  });
+  const a = X0 + (W + G), b = X0 + 2 * (W + G) + W, yb = Y + H + 18;
+  el('path', { class: 'brk', d: `M${a} ${yb - 6}V${yb}H${b}V${yb - 6}` }, svg);
+  el('text', { class: 'tag', x: (a + b) / 2, y: yb + 22, 'text-anchor': 'middle', 'data-i18n': 'stop_tag' }, svg);
+})();
+(function buildV() {
+  const svg = document.getElementById('flow-v');
+  svg.setAttribute('viewBox', '0 0 320 424');
+  arrowDefs(svg, 'av');
+  const X = 24, W = 272, H = 56, G = 28, Y0 = 16;
+  KEYS.forEach((k, i) => {
+    const y = Y0 + i * (H + G);
+    el('rect', { class: 'box' + (i === 1 || i === 2 ? ' stop' : ''), x: X, y, width: W, height: H, rx: 8 }, svg);
+    el('text', { class: 'nm', x: X + 16, y: y + 24, 'data-i18n': `f_${k}_n` }, svg);
+    el('text', { class: 'ln', x: X + 16, y: y + 43, 'data-i18n': `f_${k}_1` }, svg);
+    if (i === 1 || i === 2) el('text', { class: 'tag', x: X + W - 14, y: y + 33, 'text-anchor': 'end', 'data-i18n': 'stop_short' }, svg);
+    if (i < 4) el('path', { class: 'arw', d: `M${X + W / 2} ${y + H + 4}V${y + H + G - 4}`, 'marker-end': 'url(#av)' }, svg);
+  });
+})();
+
+// ---------- 언어 ----------
+function applyLang(next) {
+  lang = next;
+  const d = T[lang];
+  document.documentElement.lang = lang;
+  document.title = SITE.productName[lang];
+  if (ms.open) ms.close();
+  renderLists();
+  document.querySelectorAll('[data-i18n]').forEach(n => { n.textContent = d[n.dataset.i18n] ?? ''; });
+  document.querySelectorAll('[data-i18n-aria]').forEach(n => n.setAttribute('aria-label', d[n.dataset.i18nAria]));
+  document.querySelectorAll('[data-site="productName"]').forEach(n => { n.textContent = SITE.productName[lang]; });
+  document.querySelectorAll('[data-site="contactEmail"]').forEach(n => { n.textContent = SITE.contactEmail; });
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  try { localStorage.setItem('lang', lang); } catch (e) {}
+  syncTaps();
+}
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
+document.getElementById('mailto').href = 'mailto:' + SITE.contactEmail;
+
+// ---------- 모바일 메뉴 ----------
+const menuBtn = document.getElementById('menu-btn'), sheet = document.getElementById('sheet');
+menuBtn.addEventListener('click', () => {
+  sheet.hidden = !sheet.hidden;
+  menuBtn.setAttribute('aria-expanded', String(!sheet.hidden));
+});
+sheet.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  sheet.hidden = true; menuBtn.setAttribute('aria-expanded', 'false');
+}));
+
+// ---------- 메일 복사 ----------
+const copyBtn = document.getElementById('copy-mail');
+copyBtn.addEventListener('click', () => {
+  const src = document.getElementById('mail');
+  const done = key => {
+    copyBtn.textContent = T[lang][key];
+    setTimeout(() => { copyBtn.textContent = T[lang].copy; }, 1600);
+  };
+  const fallback = () => {
+    const r = document.createRange(); r.selectNodeContents(src);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    done('copy_fail');
+  };
+  try { navigator.clipboard.writeText(SITE.contactEmail).then(() => done('copied'), fallback); }
+  catch (err) { fallback(); }
+});
+
+// ---------- 모바일 바텀 시트 ----------
+// 640px 미만: 항목이 많은 묶음은 앞의 몇 개만 제목으로 보이고, "N개 모두 보기" 버튼이 묶음 전체를 시트 하나에 펼쳐 보여준다.
+// 보이는 항목을 누르면 같은 시트가 열리고 그 항목 위치로 이동한다.
+const mqMobile = window.matchMedia('(max-width: 639px)');
+const ms = document.getElementById('msheet');
+// 묶음: [목록 요소 id, 모바일에서 미리 보일 개수]
+const MORE = { feat: ['feature-cells', 3], devx: ['devx-cells', 3], safety: ['safety-rows', 3], cmp: ['cmp-cards', 4], fw: ['fw-list', 3] };
+let msOpener = null;
+function syncTaps() {
+  const d = T[lang];
+  for (const g in MORE) {
+    const [id, limit] = MORE[g], list = document.getElementById(id);
+    const items = [...list.querySelectorAll(`.tap[data-group="${g}"]`)];
+    items.forEach((el, i) => el.classList.toggle('m-extra', i >= limit));
+    let btn = list.nextElementSibling;
+    if (!btn || !btn.classList.contains('m-more')) {
+      btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'm-more'; btn.dataset.more = g;
+      btn.setAttribute('aria-haspopup', 'dialog');
+      list.after(btn);
+    }
+    btn.hidden = items.length <= limit;
+    btn.innerHTML = `${esc(d.ms_all(items.length))}<span class="n">+${Math.max(0, items.length - limit)}</span>`;
+  }
+  document.querySelectorAll('.tap').forEach(el => {
+    if (mqMobile.matches) { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-haspopup', 'dialog'); }
+    else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.removeAttribute('aria-haspopup'); }
+  });
+}
+function openSheet(group, focusEl, opener) {
+  const d = T[lang];
+  const items = [...document.querySelectorAll(`.tap[data-group="${group}"]`)];
+  document.getElementById('ms-title').textContent = d['g_' + group];
+  document.getElementById('ms-count').textContent = d.ms_n(items.length);
+  document.getElementById('ms-close').setAttribute('aria-label', d.ms_close);
+  const body = document.getElementById('ms-body');
+  let target = null;
+  body.replaceChildren(...items.map(el => {
+    const sec = document.createElement('section');
+    sec.className = 'ms-item';
+    const head = document.createElement('div');
+    head.className = 'ms-ih';
+    const mark = el.querySelector('.ico') || el.querySelector('.cmp-sum > :first-child');
+    if (mark) head.appendChild(mark.cloneNode(true));
+    const h = document.createElement('h3');
+    h.textContent = el.querySelector('.m-title').textContent;
+    head.appendChild(h);
+    sec.append(head, ...[...el.querySelectorAll('.m-detail')].map(n => n.cloneNode(true)));
+    if (el === focusEl) target = sec;
+    return sec;
+  }));
+  msOpener = opener;
+  if (typeof ms.showModal === 'function') ms.showModal(); else ms.setAttribute('open', '');
+  document.documentElement.classList.add('sheet-open');
+  body.scrollTop = 0;
+  if (target && target !== body.firstElementChild) {
+    body.scrollTop = target.offsetTop - body.offsetTop;
+    target.classList.add('hit');
+  }
+}
+ms.addEventListener('close', () => {
+  document.documentElement.classList.remove('sheet-open');
+  if (msOpener && msOpener.isConnected && mqMobile.matches) msOpener.focus({ preventScroll: true });
+});
+ms.addEventListener('click', e => { if (e.target === ms) ms.close(); });
+document.getElementById('ms-close').addEventListener('click', () => ms.close());
+document.addEventListener('click', e => {
+  if (!mqMobile.matches || ms.contains(e.target)) return;
+  const more = e.target.closest('.m-more');
+  if (more) { openSheet(more.dataset.more, null, more); return; }
+  const t = e.target.closest('.tap');
+  if (t) openSheet(t.dataset.group, t, t);
+});
+document.addEventListener('keydown', e => {
+  if (!mqMobile.matches || !(e.key === 'Enter' || e.key === ' ')) return;
+  if (e.target.classList && e.target.classList.contains('tap')) { e.preventDefault(); openSheet(e.target.dataset.group, e.target, e.target); }
+});
+mqMobile.addEventListener('change', () => { syncTaps(); if (!mqMobile.matches && ms.open) ms.close(); });
+
+applyLang(lang);
+</script>

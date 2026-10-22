@@ -1,0 +1,25 @@
+{
+  "name": "base-batch-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "외부 공개용 소개 사이트 (정적). base-batch 운영 UI·API 와 연결하지 않는다.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/check-leaks.mjs",
+    "preview": "astro preview",
+    "check": "node scripts/check-i18n.mjs && node scripts/check-facts.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:facts": "node scripts/check-facts.mjs",
+    "check:leaks": "node scripts/check-leaks.mjs"
+  },
+  "dependencies": {
+    "@fontsource/geist-mono": "^5.0.0",
+    "@fontsource/geist-sans": "^5.0.0",
+    "@fontsource/noto-sans-kr": "^5.0.0",
+    "astro": "^4.16.0"
+  }
+}

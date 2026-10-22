@@ -1,0 +1,71 @@
+---
+// 비교: 900px 이상은 표, 미만은 카드(이 프레임워크 평가 + 항목명). 카드를 누르면 시트에 세 줄을 모두 보여 준다.
+import Icon from './Icon.astro';
+import Mark from './Mark.astro';
+import MoreButton from './MoreButton.astro';
+import { COMPARE, FIT } from '../data/content.js';
+import type { Lang } from '../site.config';
+import { useT } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang);
+const LIMIT = 4;
+type Cell = [string, string];
+const m = (c: Cell) => c[0] as 'g' | 'p' | 'w';
+---
+<section class="section" id="compare">
+  <div class="frame">
+    <div class="in pad">
+      <div class="sec-head">
+        <p class="eyebrow">{t.cp_eyebrow}</p>
+        <h2>{t.cp_title}</h2>
+        <p>{t.cp_lede}</p>
+      </div>
+      <div class="legend">
+        {(['g', 'p', 'w'] as const).map(x => <span><Mark m={x} lang={lang} />{t[`mk_${x}`]}</span>)}
+      </div>
+      <div class="cmp-table-wrap">
+        <table class="cmp-table">
+          <thead><tr><th scope="col">{t.col_item}</th><th scope="col" class="ours">{t.col_ours}</th><th scope="col">{t.col_gui}</th><th scope="col">{t.col_script}</th></tr></thead>
+          <tbody>
+            {COMPARE.map(r => {
+              const x = r[lang] as [string, Cell, Cell, Cell];
+              return (
+                <tr>
+                  <th scope="row">{x[0]}</th>
+                  {[1, 2, 3].map(i => {
+                    const c = x[i] as Cell;
+                    return <td class={i === 1 ? 'ours' : undefined}><div class="cell-mk"><Mark m={m(c)} lang={lang} /><span class={`tx-${c[0]}`}>{c[1]}</span></div></td>;
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div class="cmp-mobile">
+        <div class="cmp-cards" data-sheet="cmp" data-title={t.g_cmp}>
+          {COMPARE.map((r, i) => {
+            const x = r[lang] as [string, Cell, Cell, Cell];
+            const lines: [string, string, Cell][] = [['ours', t.col_ours, x[1]], ['other', t.col_gui, x[2]], ['other', t.col_script, x[3]]];
+            return (
+              <div class:list={['cmp-card tap', { 'm-extra': i >= LIMIT }]} data-group="cmp">
+                <div class="cmp-sum"><Mark m={m(x[1])} lang={lang} /><h3 class="m-title">{x[0]}</h3></div>
+                {lines.map(([cls, who, c]) => (
+                  <div class={`cmp-line ${cls} m-detail`}><Mark m={m(c)} lang={lang} /><span class="who">{who}</span><span class="tx">{c[1]}</span></div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+        <MoreButton group="cmp" total={COMPARE.length} limit={LIMIT} lang={lang} />
+      </div>
+      <div class="fit">
+        <div><h3>{t.fit_yes}</h3><ul>{FIT[lang].yes.map(s => <li><Icon name="tick" size={18} stroke={2} /><span>{s}</span></li>)}</ul></div>
+        <div class="no"><h3>{t.fit_no}</h3><ul>{FIT[lang].no.map(s => <li><Icon name="minus" size={18} stroke={2} /><span>{s}</span></li>)}</ul></div>
+      </div>
+      <p class="cmp-note">{t.cp_note}</p>
+    </div>
+  </div>
+</section>
